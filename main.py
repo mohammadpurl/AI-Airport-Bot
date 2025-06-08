@@ -6,13 +6,13 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import openai
 from dotenv import load_dotenv
-from services.speech_service import SpeechService
-from services.google_sheets_service import GoogleSheetsService
-from services.openai_service import OpenAIService
+from app.services.speech_service import SpeechService
+from app.services.google_sheets_service import GoogleSheetsService
+from app.services.openai_service import OpenAIService
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from routes.response_routes import router as response_router
-from database.database import engine, Base, get_db
+from app.routes.response_routes import router as response_router
+from app.database.database import engine, Base, get_db
 from sqlalchemy import text
 
 # Load environment variables from .env file

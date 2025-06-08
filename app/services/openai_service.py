@@ -1,7 +1,7 @@
 import os
 from openai import OpenAI
 from typing import Optional, Dict, Any
-from services.google_sheets_service import GoogleSheetsService
+from app.services.google_sheets_service import GoogleSheetsService
 from dotenv import load_dotenv
 
 
