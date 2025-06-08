@@ -13,8 +13,12 @@ class OpenAIService:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-        # ایجاد کلاینت به سبک صحیح (سازگار با نسخه جدید SDK)
-        self.client = OpenAI()
+        self.client = OpenAI(
+            default_headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
         self.sheets_service = GoogleSheetsService()
 
     def get_response(self, user_input: str, knowledge_base: str) -> Dict[str, Any]:
