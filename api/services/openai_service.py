@@ -15,8 +15,8 @@ class OpenAIService:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-        self.client = (
-            OpenAI()
+        self.client = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY")
         )  # The API key is automatically read from OPENAI_API_KEY environment variable
         self.sheets_service = GoogleSheetsService()
 

@@ -10,6 +10,10 @@ from api.services.openai_service import OpenAIService
 from api.services.google_sheets_service import GoogleSheetsService
 from api.services.speech_service import SpeechService
 
+api_key = os.getenv("OPENAI_API_KEY")
+if api_key:
+    os.environ["OPENAI_API_KEY"] = api_key
+
 # Load environment variables
 load_dotenv(override=True)
 
