@@ -7,17 +7,14 @@ from dotenv import load_dotenv
 
 class OpenAIService:
     def __init__(self):
-        # Ensure environment variables are loaded
         load_dotenv(override=True)
 
-        # Get API key and verify it exists
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-        self.client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
-        )  # The API key is automatically read from OPENAI_API_KEY environment variable
+        # ایجاد کلاینت به سبک صحیح (سازگار با نسخه جدید SDK)
+        self.client = OpenAI()
         self.sheets_service = GoogleSheetsService()
 
     def get_response(self, user_input: str, knowledge_base: str) -> Dict[str, Any]:
