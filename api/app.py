@@ -1,9 +1,9 @@
 import os
-import speech_recognition as sr
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
+import speech_recognition as sr  # type: ignore
+from google.oauth2.credentials import Credentials  # type: ignore
+from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore
+from google.auth.transport.requests import Request  # type: ignore
+from googleapiclient.discovery import build  # type: ignore
 import openai
 from dotenv import load_dotenv
 from api.services.speech_service import SpeechService

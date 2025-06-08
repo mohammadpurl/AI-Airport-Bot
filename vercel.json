@@ -2,7 +2,7 @@
     "devCommand": "uvicorn main:app --host 127.0.0.1 --port 4000 --reload",
     "builds": [
         {
-            "src": "main.py",
+            "src": "api/app.py",
             "use": "@vercel/python",
             "config": {
                 "includeFiles": [
@@ -14,7 +14,7 @@
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/dist/index.js"
+            "dest": "api/app.py"
         }
     ]
 }

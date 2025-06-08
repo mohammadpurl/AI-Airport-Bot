@@ -1,8 +1,8 @@
 import os
 import json
-from google.oauth2.credentials import Credentials
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials  # type: ignore
+from google.oauth2 import service_account  # type: ignore
+from googleapiclient.discovery import build  # type: ignore
 from dotenv import load_dotenv
 from typing import Dict, List, Optional
 
