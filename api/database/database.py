@@ -30,15 +30,17 @@ engine = create_engine(
     poolclass=QueuePool,
     pool_size=5,
     max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800,  # Recycle connections after 30 minutes
-    pool_pre_ping=True,  # Enable connection health checks
+    pool_timeout=60,  # Increased timeout
+    pool_recycle=1800,
+    pool_pre_ping=True,
     connect_args={
-        "connect_timeout": 10,  # Connection timeout in seconds
-        "keepalives": 1,  # Enable keepalive
-        "keepalives_idle": 30,  # Idle time before sending keepalive
-        "keepalives_interval": 10,  # Time between keepalives
-        "keepalives_count": 5,  # Number of keepalives before giving up
+        "connect_timeout": 30,  # Increased connection timeout
+        "keepalives": 1,
+        "keepalives_idle": 60,  # Increased idle time
+        "keepalives_interval": 30,  # Increased interval
+        "keepalives_count": 10,  # Increased count
+        "application_name": "airport_bot",  # Added application name
+        "options": "-c statement_timeout=30000",  # 30 second statement timeout
     },
 )
 
