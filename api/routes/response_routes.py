@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.database.database import get_db
-from app.models.response_model import Response
-from app.schemas.response_schema import ResponseCreate, Response as ResponseSchema
-from app.services.openai_service import OpenAIService
-from app.services.google_sheets_service import GoogleSheetsService
+from api.database.database import get_db
+from api.models.response_model import Response
+from api.schemas.response_schema import ResponseCreate, Response as ResponseSchema
+from api.services.openai_service import OpenAIService
+from api.services.google_sheets_service import GoogleSheetsService
 import uuid
 
 router = APIRouter()
