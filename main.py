@@ -9,10 +9,11 @@ from dotenv import load_dotenv
 from services.speech_service import SpeechService
 from services.google_sheets_service import GoogleSheetsService
 from services.openai_service import OpenAIService
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from routes.response_routes import router as response_router
-from database.database import engine, Base
+from database.database import engine, Base, get_db
+from sqlalchemy import text
 
 # Load environment variables from .env file
 load_dotenv(override=True)  # Added override=True to ensure values are loaded
@@ -171,8 +172,45 @@ app.include_router(response_router, prefix="/api/v1", tags=["responses"])
 
 @app.get("/")
 async def root():
-    return {"message": "Airport AI Bot API is running"}
+    """Root endpoint to check application status and connections."""
+    status = {
+        "status": "running",
+        "version": "1.0.0",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "connections": {
+            "database": "checking...",
+            "openai": "checking...",
+            "google_sheets": "checking...",
+        },
+    }
+
+    # Check database connection
+    try:
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        status["connections"]["database"] = "connected"
+    except Exception as e:
+        status["connections"]["database"] = f"error: {str(e)}"
+
+    # Check OpenAI connection
+    try:
+        openai_service = OpenAIService()
+        status["connections"]["openai"] = "configured"
+    except Exception as e:
+        status["connections"]["openai"] = f"error: {str(e)}"
+
+    # Check Google Sheets connection
+    try:
+        sheets_service = GoogleSheetsService()
+        sheets_service.get_sheet_data()
+        status["connections"]["google_sheets"] = "connected"
+    except Exception as e:
+        status["connections"]["google_sheets"] = f"error: {str(e)}"
+
+    return status
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
