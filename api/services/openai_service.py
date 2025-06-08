@@ -15,7 +15,9 @@ class OpenAIService:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-        self.client = OpenAI(api_key=api_key)
+        self.client = (
+            OpenAI()
+        )  # The API key is automatically read from OPENAI_API_KEY environment variable
         self.sheets_service = GoogleSheetsService()
 
     def get_response(self, user_input: str, knowledge_base: str) -> Dict[str, Any]:
