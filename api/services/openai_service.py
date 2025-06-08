@@ -1,5 +1,5 @@
 import os
-from openai import OpenAI
+import requests  # type: ignore
 from typing import Optional, Dict, Any
 from api.services.google_sheets_service import GoogleSheetsService
 from dotenv import load_dotenv
@@ -7,19 +7,20 @@ from dotenv import load_dotenv
 
 class OpenAIService:
     def __init__(self):
+        # Ensure environment variables are loaded
         load_dotenv(override=True)
 
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        # Get API key and verify it exists
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-        self.client = OpenAI(
-            default_headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-        )
         self.sheets_service = GoogleSheetsService()
+        self.base_url = "https://api.openai.com/v1"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
 
     def get_response(self, user_input: str, knowledge_base: str) -> Dict[str, Any]:
         """Get response from OpenAI based on user input and knowledge base."""
@@ -45,20 +46,26 @@ Instructions:
 
 Please provide your answer based on these instructions."""
 
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
+            payload = {
+                "model": "gpt-3.5-turbo",
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a helpful airport information assistant. Your primary goal is to provide accurate information from the knowledge base. If the information is not available, provide a general knowledge answer. Respond in the same language as the question.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,  # Lower temperature for more focused responses
-                max_tokens=500,
-            )
+                "temperature": 0.3,
+                "max_tokens": 500,
+            }
 
-            answer = response.choices[0].message.content
+            response = requests.post(
+                f"{self.base_url}/chat/completions", headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            answer = result["choices"][0]["message"]["content"]
 
             # Get properly formatted context data
             context_items = self.sheets_service.get_context_for_response()
@@ -77,7 +84,6 @@ Please provide your answer based on these instructions."""
                 "answer": answer,
                 "confidence_score": confidence_score,
                 "error_message": None,
-                # "context_used": context_str
             }
 
         except Exception as e:
@@ -85,5 +91,4 @@ Please provide your answer based on these instructions."""
                 "answer": None,
                 "confidence_score": 0.0,
                 "error_message": str(e),
-                # "context_used": ""
             }
