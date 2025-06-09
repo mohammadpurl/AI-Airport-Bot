@@ -32,6 +32,7 @@ app = FastAPI(
     title="Airport AI Assistant",
     description="An AI-powered assistant that answers questions based on predefined information",
     version="1.0.0",
+    redirect_slashes=False,
 )
 
 
