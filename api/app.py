@@ -73,14 +73,6 @@ async def options_handler(request: Request, path: str):
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
-@app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    response = Response(status_code=200)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
 
 @app.get("/")
 async def root():
