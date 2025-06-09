@@ -36,14 +36,29 @@ app = FastAPI(
     redirect_slashes=False,
 )
 
-# CORS Middleware
+origins = [
+    "http://localhost:3000",  # برای توسعه لوکال فرانت‌اند
+    "http://localhost:4000",  # اگر بک‌اند و فرانت‌اند در یک پورت با هم تست می‌شوند (کمتر رایج)
+    "https://next-livekit-streaming.vercel.app/",  # **اینجا باید آدرس دیپلوی شده فرانت‌اند روی Vercel را وارد کنید**
+    # می‌توانید wildcard هم استفاده کنید اگر دامنه ثابت نیست، اما توصیه نمی‌شود
+    # "https://*.vercel.app"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,  # لیست دامنه‌هایی که اجازه دسترسی دارند
+    allow_credentials=True,  # اجازه ارسال کوکی‌ها در Cross-Origin
+    allow_methods=["*"],  # اجازه تمام متدها (GET, POST, PUT, DELETE, etc)
+    allow_headers=["*"],  # اجازه تمام هدرها
 )
+# # CORS Middleware
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 # Try to create DB tables, but don't fail if database is not available
 try:
