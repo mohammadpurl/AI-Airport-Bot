@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from api.database.database import get_db
 from api.models.response_model import Response
-from api.schemas.response_schema import ResponseCreate, Response as ResponseSchema
+from api.schemas.response_schema import (
+    ResponseCreate,
+    Response as ResponseSchema,
+    AskRequest,
+)
 from api.services.openai_service import OpenAIService
 from api.services.google_sheets_service import GoogleSheetsService
 import uuid
@@ -15,11 +19,12 @@ sheets_service = GoogleSheetsService()
 
 @router.post("/ask", response_model=ResponseSchema)
 async def ask_question(
-    question: str,
+    body: AskRequest,  # اینجا تغییر کنید
     user_id: Optional[str] = Header(None),
     session_id: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
+    question = body.question  # اینجا تغییر کنید
     """Ask a question and get an AI response."""
     try:
         # Generate session ID if not provided

@@ -3,6 +3,10 @@ from typing import Optional, List
 from datetime import datetime
 
 
+class AskRequest(BaseModel):
+    question: str
+
+
 class ResponseBase(BaseModel):
     """Base schema for response data."""
 
