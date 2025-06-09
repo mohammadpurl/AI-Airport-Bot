@@ -39,9 +39,9 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",  # برای توسعه لوکال فرانت‌اند
     "http://localhost:4000",  # اگر بک‌اند و فرانت‌اند در یک پورت با هم تست می‌شوند (کمتر رایج)
-    "https://next-livekit-streaming.vercel.app/",  # **اینجا باید آدرس دیپلوی شده فرانت‌اند روی Vercel را وارد کنید**
+    "https://next-livekit-streaming.vercel.app",  # **اینجا باید آدرس دیپلوی شده فرانت‌اند روی Vercel را وارد کنید**
     # می‌توانید wildcard هم استفاده کنید اگر دامنه ثابت نیست، اما توصیه نمی‌شود
-    # "https://*.vercel.app"
+    "https://*.vercel.app",
 ]
 
 app.add_middleware(
