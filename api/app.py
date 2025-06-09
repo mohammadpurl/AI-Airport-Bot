@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from dotenv import load_dotenv
@@ -47,6 +47,14 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(response_router, prefix="/api/v1", tags=["responses"])
+
+@app.options("/{path:path}")
+async def options_handler(request: Request, path: str):
+    response = Response(status_code=200)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 @app.get("/")
