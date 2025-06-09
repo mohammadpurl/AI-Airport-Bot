@@ -16,5 +16,12 @@
             "src": "/(.*)",
             "dest": "api/app.py"
         }
+    ],
+    "redirects": [
+        {
+            "source": "/api/v1/ask",
+            "destination": "/api/v1/ask/",
+            "permanent": true
+        }
     ]
 }
