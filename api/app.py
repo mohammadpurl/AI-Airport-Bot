@@ -71,24 +71,6 @@ app.include_router(response_router, prefix="/api/v1", tags=["responses"])
 app.include_router(passport_router, prefix="/api/v1", tags=["passport"])
 
 
-@app.middleware("http")
-async def add_cors_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-
-@app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    response = Response(status_code=200)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-
 @app.get("/")
 async def root():
     """Check application and services status."""
