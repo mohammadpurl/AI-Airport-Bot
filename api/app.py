@@ -8,6 +8,7 @@ from api.database.database import engine, Base, get_db
 from api.routes.response_routes import router as response_router
 from api.routes.passport_routes import router as passport_router
 from api.routes.message_routes import router as message_routes
+from api.routes.trip_routes import router as trip_routes
 from api.services.openai_service import OpenAIService
 from api.services.google_sheets_service import GoogleSheetsService
 from api.services.speech_service import SpeechService
@@ -71,6 +72,7 @@ except Exception as e:
 app.include_router(response_router, prefix="/api/v1", tags=["responses"])
 app.include_router(passport_router, prefix="/api/v1", tags=["passport"])
 app.include_router(message_routes, prefix="/api/v1", tags=["messages"])
+app.include_router(trip_routes, prefix="/api/v1", tags=["trip"])
 
 
 @app.get("/")

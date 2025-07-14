@@ -1,10 +1,8 @@
 from sqlalchemy import Column, String, Enum, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from api.database.database import Base  # استفاده از Base اصلی پروژه
 import enum
 import uuid
 from datetime import datetime
-
-Base = declarative_base()
 
 
 class MessageSender(enum.Enum):
@@ -12,7 +10,7 @@ class MessageSender(enum.Enum):
     AVATAR = "AVATAR"
 
 
-class Message(Base):
+class Message(Base):  # type: ignore
     __tablename__ = "messages"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
