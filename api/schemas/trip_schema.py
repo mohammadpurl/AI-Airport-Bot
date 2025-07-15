@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List
 
 
 class PassengerBase(BaseModel):
-    fullName: str = Field(..., alias="full_name")
-    nationalId: str = Field(..., alias="national_id")
-    luggageCount: int = Field(..., alias="luggage_count")
+    fullName: str
+    nationalId: str
+    luggageCount: int
 
 
 class PassengerCreate(PassengerBase):
@@ -17,13 +17,12 @@ class Passenger(PassengerBase):
 
     class Config:
         orm_mode = True
-        allow_population_by_field_name = True
 
 
 class TripBase(BaseModel):
-    airportName: str = Field(..., alias="airport_name")
-    travelDate: str = Field(..., alias="travel_date")
-    flightNumber: str = Field(..., alias="flight_number")
+    airportName: str
+    travelDate: str
+    flightNumber: str
 
 
 class TripCreate(TripBase):
@@ -36,4 +35,3 @@ class Trip(TripBase):
 
     class Config:
         orm_mode = True
-        allow_population_by_field_name = True
