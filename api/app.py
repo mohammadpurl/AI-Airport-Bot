@@ -50,7 +50,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # لیست دامنه‌هایی که اجازه دسترسی دارند
+    allow_origins=["*"],  # origins,  # لیست دامنه‌هایی که اجازه دسترسی دارند
     allow_credentials=True,  # اجازه ارسال کوکی‌ها در Cross-Origin
     allow_methods=["*"],  # اجازه تمام متدها (GET, POST, PUT, DELETE, etc)
     allow_headers=["*"],  # اجازه تمام هدرها
