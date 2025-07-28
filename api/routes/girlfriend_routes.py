@@ -6,6 +6,7 @@ from api.services.lipsync_service import LipSyncService
 from api.services.file_service import FileService
 import os
 import logging
+import tempfile
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +17,34 @@ router = APIRouter()
 
 def get_elevenlabs_api_key():
     return os.getenv("ELEVEN_LABS_API_KEY")
+
+
+def get_temp_audio_dir():
+    """Get a writable directory for audio files"""
+    # Try different writable directories
+    possible_dirs = [
+        "/tmp",
+        tempfile.gettempdir(),
+        os.getcwd(),
+        os.path.join(os.getcwd(), "temp"),
+    ]
+
+    for dir_path in possible_dirs:
+        try:
+            # Test if we can write to this directory
+            test_file = os.path.join(dir_path, "test_write.tmp")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            logger.info(f"Using writable directory: {dir_path}")
+            return dir_path
+        except (OSError, IOError) as e:
+            logger.warning(f"Cannot write to {dir_path}: {e}")
+            continue
+
+    # If no writable directory found, use current directory
+    logger.warning("No writable directory found, using current directory")
+    return os.getcwd()
 
 
 @router.get("/")
@@ -175,50 +204,88 @@ def chat(request: ChatRequest):
 
         result_messages = []
 
-        # ایجاد پوشه audios اگر وجود ندارد
-        os.makedirs("audios", exist_ok=True)
+        # استفاده از مسیر قابل نوشتن
+        audio_dir = get_temp_audio_dir()
+        logger.info(f"Using audio directory: {audio_dir}")
+
+        # بررسی قابلیت نوشتن در مسیر
+        can_write_files = True
+        try:
+            test_file = os.path.join(audio_dir, "test_write.tmp")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+        except Exception as e:
+            logger.warning(f"Cannot write files to {audio_dir}: {e}")
+            can_write_files = False
 
         for i, message in enumerate(openai_messages):
             logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
 
-            file_name = f"audios/message_{i}.mp3"
-            text_input = message["text"]
+            if can_write_files:
+                try:
+                    file_name = os.path.join(audio_dir, f"message_{i}.mp3")
+                    text_input = message["text"]
 
-            try:
-                # تبدیل متن به گفتار
-                logger.info(f"Converting text to speech: {text_input[:50]}...")
-                elevenlabs_service.text_to_speech(text_input, file_name)
-                logger.info(f"Audio file created: {file_name}")
+                    # تبدیل متن به گفتار
+                    logger.info(f"Converting text to speech: {text_input[:50]}...")
+                    elevenlabs_service.text_to_speech(text_input, file_name)
+                    logger.info(f"Audio file created: {file_name}")
 
-                wav_file = f"audios/message_{i}.wav"
-                json_file = f"audios/message_{i}.json"
+                    wav_file = os.path.join(audio_dir, f"message_{i}.wav")
+                    json_file = os.path.join(audio_dir, f"message_{i}.json")
 
-                # تبدیل mp3 به wav
-                logger.info(f"Converting {file_name} to {wav_file}")
-                lipsync_service.mp3_to_wav(file_name, wav_file)
+                    # تبدیل mp3 به wav
+                    logger.info(f"Converting {file_name} to {wav_file}")
+                    lipsync_service.mp3_to_wav(file_name, wav_file)
 
-                # تولید lipsync
-                logger.info(f"Generating lipsync for {wav_file}")
-                lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+                    # تولید lipsync
+                    logger.info(f"Generating lipsync for {wav_file}")
+                    lipsync_service.wav_to_lipsync_json(wav_file, json_file)
 
-                # خواندن فایل‌ها
-                audio_base64 = file_service.audio_file_to_base64(file_name)
-                lipsync_data = file_service.read_json_transcript(json_file)
+                    # خواندن فایل‌ها
+                    audio_base64 = file_service.audio_file_to_base64(file_name)
+                    lipsync_data = file_service.read_json_transcript(json_file)
 
-                result_messages.append(
-                    Message(
-                        text=message["text"],
-                        audio=audio_base64,
-                        lipsync=lipsync_data,
-                        facialExpression=message["facialExpression"],
-                        animation=message["animation"],
+                    result_messages.append(
+                        Message(
+                            text=message["text"],
+                            audio=audio_base64,
+                            lipsync=lipsync_data,
+                            facialExpression=message["facialExpression"],
+                            animation=message["animation"],
+                        )
                     )
-                )
-                logger.info(f"Message {i} processed successfully")
+                    logger.info(f"Message {i} processed successfully with audio")
 
-            except Exception as e:
-                logger.error(f"Error processing message {i}: {e}")
-                # در صورت خطا، پیام بدون audio و lipsync برگردان
+                    # پاک کردن فایل‌های موقت
+                    try:
+                        os.remove(file_name)
+                        os.remove(wav_file)
+                        os.remove(json_file)
+                        logger.info(f"Temporary files cleaned up for message {i}")
+                    except Exception as e:
+                        logger.warning(
+                            f"Could not clean up temporary files for message {i}: {e}"
+                        )
+
+                except Exception as e:
+                    logger.error(f"Error processing message {i} with audio: {e}")
+                    # در صورت خطا، پیام بدون audio و lipsync برگردان
+                    result_messages.append(
+                        Message(
+                            text=message["text"],
+                            audio=None,
+                            lipsync=None,
+                            facialExpression=message["facialExpression"],
+                            animation=message["animation"],
+                        )
+                    )
+            else:
+                # اگر نمی‌توان فایل نوشت، فقط متن برگردان
+                logger.info(
+                    f"File system is read-only, returning text-only message {i}"
+                )
                 result_messages.append(
                     Message(
                         text=message["text"],
