@@ -14,4 +14,5 @@ python-multipart==0.0.20
 pytesseract==0.3.10
 Pillow==10.0.0
 tokenizers<=0.20.3,>=0.13.2
-PyJWT==1.7.1 
+PyJWT==1.7.1
+requests>=2.31.0 

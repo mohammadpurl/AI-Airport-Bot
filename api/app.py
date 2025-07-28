@@ -1,8 +1,15 @@
 import os
+import logging
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from dotenv import load_dotenv
+
+# تنظیم لاگر
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 from api.database.database import engine, Base, get_db
 from api.routes.response_routes import router as response_router
@@ -68,8 +75,10 @@ app.add_middleware(
 # Try to create DB tables, but don't fail if database is not available
 try:
     Base.metadata.create_all(bind=engine)
+    logger.info("Database initialized successfully")
 except Exception as e:
-    print(f"Warning: Could not connect to database: {e}")
+    logger.warning(f"Could not initialize database: {e}")
+    logger.info("Application will continue without persistent database")
 
 # Include API routes
 app.include_router(response_router, prefix="/api/v1", tags=["responses"])
