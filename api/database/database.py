@@ -8,9 +8,14 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # Use SQLite for local development
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "../../airport_bot.db")
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# DB_PATH = os.path.join(BASE_DIR, "../../airport_bot.db")
+# SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}
+
+
+DB_PATH = "/tmp/airport_bot.db"
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}"
+
 
 # Create engine
 engine = create_engine(
