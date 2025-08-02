@@ -20,7 +20,7 @@ from api.routes import extract_info_routes
 from api.services.openai_service import OpenAIService
 from api.services.google_sheets_service import GoogleSheetsService
 from api.services.speech_service import SpeechService
-from api.routes.girlfriend_routes import router as girlfriend_router
+from api.routes.assistant_routes import router as assistant_routes
 
 api_key = os.getenv("OPENAI_API_KEY")
 if api_key:
@@ -86,7 +86,7 @@ app.include_router(passport_router, prefix="/api/v1", tags=["passport"])
 app.include_router(message_routes, prefix="/api/v1", tags=["messages"])
 app.include_router(trip_routes, prefix="/api/v1", tags=["trip"])
 app.include_router(extract_info_routes.router, prefix="/api/v1", tags=["extract-info"])
-app.include_router(girlfriend_router, prefix="/api/v1/girlfriend", tags=["girlfriend"])
+app.include_router(assistant_routes, prefix="/api/v1/aiassistant", tags=["aiassistant"])
 
 
 @app.get("/")
