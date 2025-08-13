@@ -8,6 +8,7 @@ from api.services.elevenlabs_service import ElevenLabsService
 import os
 import logging
 import tempfile
+import re
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +49,29 @@ def get_temp_audio_dir():
     return os.getcwd()
 
 
+def clean_text_from_json(text: str) -> str:
+    """Remove JSON artifacts from text that might contain OpenAI response formatting."""
+    if not text:
+        return text
+
+    # Remove JSON-like structures that might be appended to text
+    # Pattern to match JSON arrays or objects at the end of text
+    json_pattern = r"\s*\[\s*\{.*\}\s*\]\s*$"
+
+    # Remove the JSON part
+    cleaned_text = re.sub(json_pattern, "", text, flags=re.DOTALL)
+
+    # Also remove any remaining JSON-like artifacts
+    cleaned_text = re.sub(r"\s*\{[^}]*\}\s*", "", cleaned_text)
+
+    # Clean up extra whitespace
+    cleaned_text = cleaned_text.strip()
+
+    logger.info(f"Text cleaned: '{text[:100]}...' -> '{cleaned_text[:100]}...'")
+
+    return cleaned_text
+
+
 @router.get("/")
 def root():
     logger.info("Root endpoint called")
@@ -58,6 +82,65 @@ def root():
 def test():
     logger.info("Test endpoint called")
     return {"status": "ok", "message": "Test route is working!"}
+
+
+@router.get("/test-clean")
+def test_text_cleaning():
+    """Test the text cleaning function with sample problematic text."""
+    test_text = 'در سالن VIP CIP، امکاناتی مثل لانژ اختصاصی، رستوران سلف‌سرویس، اتاق بازی کودکان و اینترنت پرسرعت داریم. خدمات ویژه‌ای مثل Home Check-in، ویلچر و پذیرش حیوان خانگی هم ارائه می‌دیم. اگه سوال دیگه‌ای داری، بگو تا راهنماییت کنم. [ { "text": "در سالن VIP CIP، امکاناتی مثل لانژ اختصاصی، رستوران سلف‌سرویس، اتاق بازی کودکان و اینترنت پرسرعت داریم.", "facialExpression": "smile", "animation": "Talking_0" }, { "text": "خدمات ویژه‌ای مثل Home Check-in، ویلچر و پذیرش حیوان خانگی هم ارائه می‌دیم.", "facialExpression": "smile", "animation": "Talking_1" }, { "text": "اگه سوال دیگه‌ای داری، بگو تا راهنماییت کنم.", "facialExpression": "smile", "animation": "Talking_2" } ]'
+
+    cleaned_text = clean_text_from_json(test_text)
+
+    return {
+        "original_text": test_text,
+        "cleaned_text": cleaned_text,
+        "original_length": len(test_text),
+        "cleaned_length": len(cleaned_text),
+        "status": "Text cleaning test completed",
+    }
+
+
+@router.get("/intro", response_model=ChatResponse)
+def play_introduction():
+    """Prepare audio+lip-sync for audios/introduction.mp3 and return as a ChatResponse."""
+    try:
+        file_service = FileService()
+        lipsync_service = LipSyncService()
+
+        # Ensure base files exist
+        mp3_file = os.path.join("audios", "introduction.mp3")
+        if not os.path.exists(mp3_file):
+            raise HTTPException(status_code=404, detail=f"File not found: {mp3_file}")
+
+        wav_file = os.path.join("audios", "introduction.wav")
+        json_file = os.path.join("audios", "introduction.json")
+
+        # Convert mp3 -> wav if needed
+        if not os.path.exists(wav_file):
+            lipsync_service.mp3_to_wav(mp3_file, wav_file)
+
+        # Generate lipsync json
+        lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+
+        # Read back audio and json
+        audio_base64 = file_service.audio_file_to_base64(mp3_file)
+        lipsync_data = file_service.read_json_transcript(json_file)
+
+        message = Message(
+            text="سلام! من بینادهستم، اینجا کنارتم که سفرت رو راحت کنم. امروز کجا قراره سفر کنی؟ دوست داری از کجا شروع کنیم؟",
+            audio=audio_base64,
+            lipsync=lipsync_data,
+            facialExpression="smile",
+            animation="Talking_1",
+        )
+
+        return ChatResponse(messages=[message])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in /intro endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -242,7 +325,7 @@ def chat(request: ChatRequest):
 
                     result_messages.append(
                         Message(
-                            text=message.get("text", ""),
+                            text=clean_text_from_json(message.get("text", "")),
                             audio=audio_base64,
                             lipsync=lipsync_data,
                             facialExpression=message.get("facialExpression", "default"),
@@ -252,22 +335,22 @@ def chat(request: ChatRequest):
                     logger.info(f"Message {i} processed successfully with audio")
 
                     # پاک کردن فایل‌های موقت
-                    try:
-                        os.remove(file_name)
-                        os.remove(wav_file)
-                        os.remove(json_file)
-                        logger.info(f"Temporary files cleaned up for message {i}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Could not clean up temporary files for message {i}: {e}"
-                        )
+                    # try:
+                    #     os.remove(file_name)
+                    #     os.remove(wav_file)
+                    #     os.remove(json_file)
+                    #     logger.info(f"Temporary files cleaned up for message {i}")
+                    # except Exception as e:
+                    #     logger.warning(
+                    #         f"Could not clean up temporary files for message {i}: {e}"
+                    #     )
 
                 except Exception as e:
                     logger.error(f"Error processing message {i} with audio: {e}")
                     # در صورت خطا، پیام بدون audio و lipsync برگردان
                     result_messages.append(
                         Message(
-                            text=message.get("text", ""),
+                            text=clean_text_from_json(message.get("text", "")),
                             audio=None,
                             lipsync=None,
                             facialExpression=message.get("facialExpression", "default"),
