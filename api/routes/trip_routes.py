@@ -8,7 +8,7 @@ from api.services.trip_service import create_trip, get_trip
 router = APIRouter()
 
 
-@router.post("/trips/", response_model=Trip)
+@router.post("/trips", response_model=Trip)
 def create_trip_endpoint(trip: TripCreate, db: Session = Depends(get_db)):
     try:
         db_trip = create_trip(db, trip)

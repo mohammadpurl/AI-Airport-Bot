@@ -11,7 +11,7 @@ def save_messages(db: Session, messages: List[MessageCreate]):
         db_message = Message(
             id=msg.id,
             sender=msg.sender,
-            content=msg.content,
+            content=msg.text,
             created_at=datetime.utcnow(),
         )
         db.add(db_message)

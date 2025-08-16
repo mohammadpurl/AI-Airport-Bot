@@ -33,6 +33,8 @@ load_dotenv(override=True)
 REQUIRED_ENV_VARS = [
     "OPENAI_API_KEY",
     "KNOWLEDGE_SHEET_ID",
+    "POSTGRES_PASSWORD",  # Added PostgreSQL password requirement
+    "EXTERNAL_EXTRACTINFO_SERVICE_URL",  # Added external service URL requirement
 ]  # Removed POSTGRES_PASSWORD
 missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
 

@@ -11,16 +11,17 @@ class MessageSender(str, Enum):
 
 class MessageBase(BaseModel):
     sender: MessageSender
-    text: str
 
 
 class MessageCreate(MessageBase):
     id: str = Field(...)
+    text: str
 
 
 class Message(MessageBase):
     id: str
+    content: str
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
