@@ -1,12 +1,15 @@
 import os
 import httpx
 import json
+from typing import List
+from api.models.message_model import Message
+from api.schemas.extract_info_schema import ExtractInfoRequest
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 
-async def call_openai(messages: list[dict]):
+async def call_openai(messages: ExtractInfoRequest):
     prompt = (
         "Extract all passenger and ticket information from the following conversation for an airline booking. "
         "Return a JSON object with these fields:\n"
@@ -20,7 +23,7 @@ async def call_openai(messages: list[dict]):
         "}\n"
         "If any field is missing, use an empty string or 0. Only return the JSON object, nothing else.\n\n"
         "Conversation:\n"
-        + "\n".join(f"{m['sender']}: {m['content']}" for m in messages)
+        + "\n".join(f"{m.sender}: {m.text}" for m in messages.messages)
     )
     headers = {
         "Content-Type": "application/json",

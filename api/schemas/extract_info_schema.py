@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from api.schemas.message_schema import MessageSender
 
 
 class Passenger(BaseModel):
@@ -8,8 +9,14 @@ class Passenger(BaseModel):
     luggageCount: int
 
 
+class MessageInput(BaseModel):
+    id: Optional[str] = None
+    text: str
+    sender: Optional[MessageSender] = None
+
+
 class ExtractInfoRequest(BaseModel):
-    messages: list[dict]  # [{"sender": str, "content": str}]
+    messages: List[MessageInput]
 
 
 class ExtractInfoResponse(BaseModel):
@@ -17,3 +24,9 @@ class ExtractInfoResponse(BaseModel):
     travelDate: str
     flightNumber: str
     passengers: List[Passenger]
+
+
+class MessageRequest(BaseModel):
+    id: str
+    text: str
+    sender: MessageSender

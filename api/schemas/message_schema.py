@@ -11,7 +11,7 @@ class MessageSender(str, Enum):
 
 class MessageBase(BaseModel):
     sender: MessageSender
-    content: str
+    text: str
 
 
 class MessageCreate(MessageBase):

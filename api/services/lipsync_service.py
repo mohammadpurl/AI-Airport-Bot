@@ -1,5 +1,6 @@
 import subprocess
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,14 @@ class LipSyncService:
     def wav_to_lipsync_json(wav_path: str, json_path: str):
         try:
             logger.info(f"Generating lipsync for {wav_path}")
+            # Pick correct Rhubarb executable across OSes
+            if os.name == "nt":
+                rhubarb_exec = os.path.join("bin", "rhubarb.exe")
+            else:
+                rhubarb_exec = os.path.join("./bin", "rhubarb")
             subprocess.run(
                 [
-                    "./bin/rhubarb",
+                    rhubarb_exec,
                     "-f",
                     "json",
                     "-o",
