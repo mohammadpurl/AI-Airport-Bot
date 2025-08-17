@@ -271,9 +271,9 @@ def chat(request: ChatRequest):
 
     try:
         # گرفتن پیام‌ها از OpenAI
-        logger.info("Getting response from OpenAI")
+        logger.info(f"Getting response from OpenAI with language: {request.language}")
         openai_messages: list = openai_service.get_assistant_response(
-            request.message, request.session_id
+            request.message, request.session_id, request.language
         )
         logger.info(f"OpenAI returned {len(openai_messages)} messages")
 
@@ -364,6 +364,54 @@ def chat(request: ChatRequest):
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/test-avashow")
+def test_avashow_service(text_input: str):
+    """Test the Avashow text-to-speech service"""
+    logger.info(f"Testing Avashow service with text: {text_input[:50]}...")
+
+    try:
+        avashow_service = AvashowService()
+
+        # Generate a unique filename
+        import uuid
+
+        filename = f"test_avashow_{uuid.uuid4().hex[:8]}.mp3"
+        file_path = os.path.join("audios", filename)
+
+        # Ensure audios directory exists
+        os.makedirs("audios", exist_ok=True)
+
+        # Convert text to speech
+        logger.info(f"Converting text to speech and saving to: {file_path}")
+        avashow_service.text_to_speech(text_input, file_path)
+
+        # Check if file was created successfully
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            logger.info(
+                f"Audio file created successfully: {file_path} (size: {file_size} bytes)"
+            )
+
+            return {
+                "status": "success",
+                "message": "Text converted to speech successfully",
+                "input_text": text_input,
+                "output_file": filename,
+                "file_path": file_path,
+                "file_size_bytes": file_size,
+                "full_path": os.path.abspath(file_path),
+            }
+        else:
+            logger.error(f"Audio file was not created: {file_path}")
+            raise HTTPException(status_code=500, detail="Failed to create audio file")
+
+    except Exception as e:
+        logger.error(f"Error testing Avashow service: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Avashow service test failed: {str(e)}"
+        )
 
 
 @router.get("/health")

@@ -13,6 +13,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: str
+    language: str = "fa"  # Default to Persian, can be "fa" or "en"
 
 
 class ChatResponse(BaseModel):
