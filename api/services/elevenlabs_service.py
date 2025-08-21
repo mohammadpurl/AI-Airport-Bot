@@ -7,30 +7,21 @@ logger = logging.getLogger(__name__)
 
 class ElevenLabsService:
     def __init__(self):
-        self.api_key = os.getenv("ELEVEN_LABS_API_KEY")
-        if not self.api_key:
-            logger.error("ELEVEN_LABS_API_KEY not set")
-            raise ValueError("ELEVEN_LABS_API_KEY environment variable is not set")
 
-        self.voice_id = "508da0af14044417a916cba1d00f632a"
-        self.base_url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}"
+        self.voice_id = os.getenv("ELEVENLABS_VOICE_ID")
+        self.base_url = os.getenv("EXTERNAL_ELEVENLABS_SERVICE_URL")
         logger.info("ElevenLabs service initialized successfully")
 
     def text_to_speech(self, text: str, file_name: str):
         try:
             logger.info(f"Converting text to speech: {text[:50]}...")
             logger.info(f"Output file: {file_name}")
-
-            headers = {
-                "xi-api-key": self.api_key,
-                "Content-Type": "application/json",
-            }
             payload = {
                 "text": text,
                 "voice_settings": {"stability": 0.5, "similarity_boost": 0.5},
             }
 
-            response = requests.post(self.base_url, headers=headers, json=payload)
+            response = requests.post(self.base_url, json=payload)
             response.raise_for_status()
 
             with open(file_name, "wb") as f:

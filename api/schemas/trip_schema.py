@@ -3,9 +3,13 @@ from typing import List
 
 
 class PassengerBase(BaseModel):
-    fullName: str
+    name: str
+    lastName: str
     nationalId: str
+    passportNumber: str
     luggageCount: int
+    passengerType: str
+    gender: str
 
 
 class PassengerCreate(PassengerBase):
@@ -23,6 +27,9 @@ class TripBase(BaseModel):
     airportName: str
     travelDate: str
     flightNumber: str
+    travelType: str
+    passengerCount: str
+    additionalInfo: str = ""
 
 
 class TripCreate(TripBase):

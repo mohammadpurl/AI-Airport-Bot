@@ -37,7 +37,10 @@ class ExtractInfoService:
             # The external service should return the same format as before
             expected_fields = [
                 "airportName",
+                "travelType",
                 "travelDate",
+                "passengerCount",
+                "additionalInfo",
                 "flightNumber",
                 "passengers",
             ]

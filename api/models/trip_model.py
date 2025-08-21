@@ -21,7 +21,12 @@ class Passenger(Base):  # type: ignore
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     trip_id = Column(String, ForeignKey("trips.id"), nullable=False)
-    fullName = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    lastName = Column(String, nullable=False)
     nationalId = Column(String, nullable=False)
+    flightNumber = Column(String, nullable=False)
+    passportNumber = Column(String, nullable=False)
     luggageCount = Column(Integer, nullable=False)
+    passengerType = Column(String, nullable=False)
+    gender = Column(String, nullable=False)
     trip = relationship("Trip", back_populates="passengers")

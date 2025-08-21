@@ -15,9 +15,14 @@ def create_trip(db: Session, trip_data: TripCreate) -> Trip:
     for p in trip_data.passengers:
         db_passenger = Passenger(
             trip_id=db_trip.id,
-            fullName=p.fullName,
+            name=p.name,
+            lastName=p.lastName,
             nationalId=p.nationalId,
+            flightNumber=p.flightNumber,
+            passportNumber=p.passportNumber,
             luggageCount=p.luggageCount,
+            passengerType=p.passengerType,
+            gender=p.gender,
         )
         db.add(db_passenger)
     db.commit()

@@ -4,9 +4,13 @@ from api.schemas.message_schema import MessageSender
 
 
 class Passenger(BaseModel):
-    fullName: str
-    nationalId: str
-    luggageCount: int
+    name: str = ""
+    nationalId: str = ""
+    flightNumber: str = ""
+    passportNumber: str = ""
+    baggageCount: str = ""
+    passengerType: str = ""  # "adult" or "infant"
+    gender: str = ""
 
 
 class MessageInput(BaseModel):
@@ -21,9 +25,11 @@ class ExtractInfoRequest(BaseModel):
 
 class ExtractInfoResponse(BaseModel):
     airportName: str
+    travelType: str  # "arrival" or "departure"
     travelDate: str
-    flightNumber: str
+    passengerCount: int
     passengers: List[Passenger]
+    additionalInfo: Optional[str] = None
 
 
 class MessageRequest(BaseModel):

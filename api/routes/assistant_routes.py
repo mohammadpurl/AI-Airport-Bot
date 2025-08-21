@@ -101,19 +101,22 @@ def test_text_cleaning():
 
 
 @router.get("/intro", response_model=ChatResponse)
-def play_introduction():
-    """Prepare audio+lip-sync for audios/introduction.mp3 and return as a ChatResponse."""
+def play_introduction(language: str = "fa"):
+    """Prepare audio+lip-sync for introduction in selected language (fa or en)."""
     try:
         file_service = FileService()
         lipsync_service = LipSyncService()
 
+        is_english = (language or "").lower().startswith("en")
+        base_name = "introduction_en" if is_english else "introduction"
+
         # Ensure base files exist
-        mp3_file = os.path.join("audios", "introduction.mp3")
+        mp3_file = os.path.join("audios", f"{base_name}.mp3")
         if not os.path.exists(mp3_file):
             raise HTTPException(status_code=404, detail=f"File not found: {mp3_file}")
 
-        wav_file = os.path.join("audios", "introduction.wav")
-        json_file = os.path.join("audios", "introduction.json")
+        wav_file = os.path.join("audios", f"{base_name}.wav")
+        json_file = os.path.join("audios", f"{base_name}.json")
 
         # Convert mp3 -> wav if needed
         if not os.path.exists(wav_file):
@@ -126,8 +129,14 @@ def play_introduction():
         audio_base64 = file_service.audio_file_to_base64(mp3_file)
         lipsync_data = file_service.read_json_transcript(json_file)
 
+        text = (
+            "Hi! I'm Bina, I'm here to make your trip easier. Where are you traveling today? Where would you like to start?"
+            if is_english
+            else "سلام! من بینادهستم، اینجا کنارتم که سفرت رو راحت کنم. امروز کجا قراره سفر کنی؟ دوست داری از کجا شروع کنیم؟"
+        )
+
         message = Message(
-            text="سلام! من بینادهستم، اینجا کنارتم که سفرت رو راحت کنم. امروز کجا قراره سفر کنی؟ دوست داری از کجا شروع کنیم؟",
+            text=text,
             audio=audio_base64,
             lipsync=lipsync_data,
             facialExpression="smile",
@@ -213,8 +222,10 @@ def chat(request: ChatRequest):
 
         return ChatResponse(messages=default_messages)
 
-    if not api_key or not os.getenv("OPENAI_API_KEY"):
-        logger.warning("API keys not set")
+    # Validate required API keys depending on language
+    is_english = (request.language or "").lower().startswith("en")
+    if (not os.getenv("OPENAI_API_KEY")) or (not is_english and not api_key):
+        logger.warning("API keys missing for the requested operation")
         api_messages = []
 
         # بررسی وجود فایل‌های API warning
@@ -302,10 +313,14 @@ def chat(request: ChatRequest):
                     file_name = os.path.join("audios", f"message_{i}.mp3")
                     text_input = message["text"]
 
-                    # تبدیل متن به گفتار
+                    # تبدیل متن به گفتار - انتخاب سرویس بر اساس زبان
                     logger.info(f"Converting text to speech: {text_input[:50]}...")
-                    avashow_service.text_to_speech(text_input, file_name)
-                    # elevenlabs_service.text_to_speech(text_input, file_name)
+                    if is_english:
+                        logger.info("Using ElevenLabsService for English TTS")
+                        elevenlabs_service.text_to_speech(text_input, file_name)
+                    else:
+                        logger.info("Using AvashowService for non-English TTS")
+                        avashow_service.text_to_speech(text_input, file_name)
                     logger.info(f"Audio file created: {file_name}")
 
                     wav_file = os.path.join("audios", f"message_{i}.wav")
