@@ -140,7 +140,7 @@ def play_introduction(language: str = "fa"):
             audio=audio_base64,
             lipsync=lipsync_data,
             facialExpression="smile",
-            animation="Talking_1",
+            animation="Idle",  # "Talking_1",
         )
 
         return ChatResponse(messages=[message])

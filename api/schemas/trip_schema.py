@@ -28,7 +28,7 @@ class TripBase(BaseModel):
     travelDate: str
     flightNumber: str
     travelType: str
-    passengerCount: str
+    passengerCount: int
     additionalInfo: str = ""
 
 

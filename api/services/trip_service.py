@@ -18,7 +18,6 @@ def create_trip(db: Session, trip_data: TripCreate) -> Trip:
             name=p.name,
             lastName=p.lastName,
             nationalId=p.nationalId,
-            flightNumber=p.flightNumber,
             passportNumber=p.passportNumber,
             luggageCount=p.luggageCount,
             passengerType=p.passengerType,

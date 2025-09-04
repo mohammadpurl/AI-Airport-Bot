@@ -24,7 +24,6 @@ class Passenger(Base):  # type: ignore
     name = Column(String, nullable=False)
     lastName = Column(String, nullable=False)
     nationalId = Column(String, nullable=False)
-    flightNumber = Column(String, nullable=False)
     passportNumber = Column(String, nullable=False)
     luggageCount = Column(Integer, nullable=False)
     passengerType = Column(String, nullable=False)

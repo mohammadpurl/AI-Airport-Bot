@@ -55,6 +55,40 @@ class ExtractInfoService:
                         result[field] = []
                     else:
                         result[field] = ""
+            # Normalize passengers: map baggageCount -> luggageCount (int)
+            normalized_passengers = []
+            for p in result.get("passengers", []) or []:
+                try:
+                    # read possible sources
+                    luggage = p.get("luggageCount")
+                    if luggage is None:
+                        baggage_raw = p.get("baggageCount")
+                        if baggage_raw is not None:
+                            # try to convert to int; fallback to 0
+                            try:
+                                luggage = int(str(baggage_raw).strip())
+                            except Exception:
+                                luggage = 0
+                    # build normalized passenger
+                    normalized_passengers.append(
+                        {
+                            "name": p.get("name", ""),
+                            "lastName": p.get("lastName", ""),
+                            "nationalId": p.get("nationalId", ""),
+                            "passportNumber": p.get("passportNumber", ""),
+                            "luggageCount": int(luggage) if luggage is not None else 0,
+                            "passengerType": p.get("passengerType", ""),
+                            "gender": p.get("gender", ""),
+                        }
+                    )
+                except Exception as norm_err:
+                    logger.warning(
+                        f"Could not normalize passenger record {p}: {norm_err}"
+                    )
+            result["passengers"] = normalized_passengers
+
+            # result["flightNumber"] = messages.flightNumber  # type: ignore
+            print("get_extractInfo_response", result)
 
             return result
 
