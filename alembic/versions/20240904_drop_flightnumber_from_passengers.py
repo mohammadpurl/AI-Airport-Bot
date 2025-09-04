@@ -18,12 +18,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("passengers") as batch_op:
-        # Drop column if exists; some DBs may error if not present
-        try:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_cols = {c["name"] for c in inspector.get_columns("passengers")}
+    if "flightNumber" in existing_cols:
+        with op.batch_alter_table("passengers") as batch_op:
             batch_op.drop_column("flightNumber")
-        except Exception:
-            pass
+    else:
+        # No-op if column doesn't exist
+        pass
 
 
 def downgrade() -> None:

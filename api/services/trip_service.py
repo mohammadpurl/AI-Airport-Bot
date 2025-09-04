@@ -9,6 +9,9 @@ def create_trip(db: Session, trip_data: TripCreate) -> Trip:
         airportName=trip_data.airportName,
         travelDate=trip_data.travelDate,
         flightNumber=trip_data.flightNumber,
+        travelType=trip_data.travelType,
+        passengerCount=trip_data.passengerCount,
+        additionalInfo=trip_data.additionalInfo,
     )
     db.add(db_trip)
     db.flush()  # تا trip_id برای مسافران داشته باشیم

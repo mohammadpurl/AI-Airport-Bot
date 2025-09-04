@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 from dotenv import load_dotenv
 
@@ -7,15 +8,22 @@ from sqlalchemy import pool
 
 from alembic import context
 
+# Ensure project root is on sys.path so 'api' can be imported when running Alembic directly
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # Load environment variables
 load_dotenv()
 
 # Import your models here
 from api.database.database import Base
-from api.models.message_model import Message
-from api.models.passport_model import Passport
-from api.models.response_model import Response
-from api.models.trip_model import Trip
+
+# Import models so Alembic sees table metadata
+from api.models.message_model import Message  # noqa: F401
+from api.models.passport_model import PassportData  # noqa: F401
+from api.models.response_model import Response  # noqa: F401
+from api.models.trip_model import Trip  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
