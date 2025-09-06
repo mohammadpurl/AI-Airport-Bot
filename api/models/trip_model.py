@@ -31,4 +31,7 @@ class Passenger(Base):  # type: ignore
     luggageCount = Column(Integer, nullable=False)
     passengerType = Column(String, nullable=False)
     gender = Column(String, nullable=False)
+    nationality = Column(
+        String, nullable=True, default="ایرانی"
+    )  # ایرانی، غیر ایرانی، دیپلمات
     trip = relationship("Trip", back_populates="passengers")

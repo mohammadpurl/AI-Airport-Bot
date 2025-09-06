@@ -10,6 +10,7 @@ class PassengerBase(BaseModel):
     luggageCount: int
     passengerType: str
     gender: str
+    nationality: str  # ایرانی، غیر ایرانی، دیپلمات
 
 
 class PassengerCreate(PassengerBase):

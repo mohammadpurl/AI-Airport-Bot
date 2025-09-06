@@ -79,6 +79,9 @@ class ExtractInfoService:
                             "luggageCount": int(luggage) if luggage is not None else 0,
                             "passengerType": p.get("passengerType", ""),
                             "gender": p.get("gender", ""),
+                            "nationality": p.get(
+                                "nationality", ""
+                            ),  # ایرانی، غیر ایرانی، دیپلمات
                         }
                     )
                 except Exception as norm_err:
