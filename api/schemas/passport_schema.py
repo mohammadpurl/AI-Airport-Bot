@@ -6,7 +6,7 @@ from typing import Optional
 class PassportDataBase(BaseModel):
     passport_number: str
     full_name: str
-    nationality: str
+    nationality: str = "ایرانی"
     date_of_birth: str
     place_of_birth: str
     date_of_issue: str

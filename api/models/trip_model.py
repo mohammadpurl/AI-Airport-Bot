@@ -12,8 +12,13 @@ class Trip(Base):  # type: ignore
     travelDate = Column(String, nullable=False)
     flightNumber = Column(String, nullable=False)
     travelType = Column(String, nullable=False)
+    flightType = Column(String, nullable=False, server_default="class_a")
     passengerCount = Column(Integer, nullable=False)
     additionalInfo = Column(String, nullable=True, default="")
+    buyerPhone = Column(String, nullable=True, default=None)
+    buyerEmail = Column(String, nullable=True, default=None)
+    orderId = Column(String, nullable=True, default=None)
+
     passengers = relationship(
         "Passenger", back_populates="trip", cascade="all, delete-orphan"
     )

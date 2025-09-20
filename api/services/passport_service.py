@@ -35,7 +35,7 @@ class PassportService:
         passport_data = {
             "passport_number": "",
             "full_name": "",
-            "nationality": "",
+            "nationality": "ایرانی",
             "date_of_birth": "",
             "place_of_birth": "",
             "date_of_issue": "",
@@ -59,6 +59,10 @@ class PassportService:
     ) -> PassportData:
         """Save passport data to database."""
         try:
+            # Set default nationality if empty
+            if not passport_data.get("nationality"):
+                passport_data["nationality"] = "ایرانی"
+
             db_passport = PassportData(**passport_data)
             db.add(db_passport)
             db.commit()

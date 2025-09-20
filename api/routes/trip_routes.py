@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from api.database.database import get_db
-from api.schemas.trip_schema import TripCreate, Trip
-from api.services.trip_service import create_trip, get_trip
+from api.schemas.trip_schema import TripCreate, Trip, TripUpdate
+from api.services.trip_service import create_trip, get_trip, update_trip
 
 router = APIRouter()
 
@@ -23,3 +23,16 @@ def get_trip_endpoint(trip_id: str, db: Session = Depends(get_db)):
     if not db_trip:
         raise HTTPException(status_code=404, detail="Trip not found")
     return db_trip
+
+
+@router.put("/trips/{trip_id}", response_model=Trip)
+def update_trip_endpoint(
+    trip_id: str, trip_update: TripUpdate, db: Session = Depends(get_db)
+):
+    try:
+        db_trip = update_trip(db, trip_id, trip_update)
+        if not db_trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        return db_trip
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

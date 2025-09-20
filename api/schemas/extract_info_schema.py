@@ -11,7 +11,7 @@ class Passenger(BaseModel):
     luggageCount: int
     passengerType: str
     gender: str
-    nationality: str  # ایرانی، غیر ایرانی، دیپلمات
+    nationality: str = "ایرانی"  # ایرانی، غیر ایرانی، دیپلمات
 
 
 class MessageInput(BaseModel):

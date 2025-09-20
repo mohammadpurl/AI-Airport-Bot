@@ -80,7 +80,7 @@ class ExtractInfoService:
                             "passengerType": p.get("passengerType", ""),
                             "gender": p.get("gender", ""),
                             "nationality": p.get(
-                                "nationality", ""
+                                "nationality", "ایرانی"
                             ),  # ایرانی، غیر ایرانی، دیپلمات
                         }
                     )
