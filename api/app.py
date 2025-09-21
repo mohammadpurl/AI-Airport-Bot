@@ -19,7 +19,7 @@ from api.routes.trip_routes import router as trip_routes
 from api.routes import extract_info_routes
 from api.services.openai_service import OpenAIService
 from api.services.google_sheets_service import GoogleSheetsService
-from api.services.speech_service import SpeechService
+
 from api.routes.assistant_routes import router as assistant_routes
 
 api_key = os.getenv("OPENAI_API_KEY")
