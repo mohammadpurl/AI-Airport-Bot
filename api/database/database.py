@@ -19,9 +19,9 @@ DB_NAME = os.getenv("POSTGRES_DB", "airport_bot")
 if not DB_PASSWORD:
     raise ValueError("POSTGRES_PASSWORD environment variable is not set")
 
-# Create database URL
+# Create database URL for psycopg3
 SQLALCHEMY_DATABASE_URL = (
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
 # Create engine with connection pooling and retry settings
@@ -30,17 +30,13 @@ engine = create_engine(
     poolclass=QueuePool,
     pool_size=5,
     max_overflow=10,
-    pool_timeout=60,  # Increased timeout
+    pool_timeout=60,
     pool_recycle=1800,
     pool_pre_ping=True,
     connect_args={
-        "connect_timeout": 30,  # Increased connection timeout
-        "keepalives": 1,
-        "keepalives_idle": 60,  # Increased idle time
-        "keepalives_interval": 30,  # Increased interval
-        "keepalives_count": 10,  # Increased count
-        "application_name": "airport_bot",  # Added application name
-        "options": "-c statement_timeout=30000",  # 30 second statement timeout
+        "connect_timeout": 30,
+        "application_name": "airport_bot",
+        "options": "-c statement_timeout=30000",
     },
 )
 
