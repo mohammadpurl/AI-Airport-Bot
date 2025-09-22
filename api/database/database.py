@@ -9,22 +9,36 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # Get database configuration from environment variables
-DB_USER = os.getenv("POSTGRES_USER", "postgres")
+DB_USER = os.getenv("POSTGRES_USER")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_HOST = os.getenv("POSTGRES_SERVER", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-DB_NAME = os.getenv("POSTGRES_DB", "airport_bot")
+DB_HOST = os.getenv("POSTGRES_SERVER")
+DB_PORT = os.getenv("POSTGRES_PORT")
+DB_NAME = os.getenv("POSTGRES_DB")
 
-# Validate required environment variables
-if not DB_PASSWORD:
-    raise ValueError("POSTGRES_PASSWORD environment variable is not set")
+# Ensure all required environment variables are set
+missing_vars = [
+    var_name
+    for var_name, value in {
+        "POSTGRES_USER": DB_USER,
+        "POSTGRES_PASSWORD": DB_PASSWORD,
+        "POSTGRES_SERVER": DB_HOST,
+        "POSTGRES_PORT": DB_PORT,
+        "POSTGRES_DB": DB_NAME,
+    }.items()
+    if not value
+]
 
-# Create database URL for psycopg3
+if missing_vars:
+    raise ValueError(
+        f"Missing required environment variables: {', '.join(missing_vars)}"
+    )
+
+# Build database URL
 SQLALCHEMY_DATABASE_URL = (
-    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
-# Create engine with connection pooling and retry settings
+# Create engine with connection pooling
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     poolclass=QueuePool,
@@ -35,19 +49,21 @@ engine = create_engine(
     pool_pre_ping=True,
     connect_args={
         "connect_timeout": 30,
+        "keepalives": 1,
+        "keepalives_idle": 60,
+        "keepalives_interval": 30,
+        "keepalives_count": 10,
         "application_name": "airport_bot",
         "options": "-c statement_timeout=30000",
     },
 )
 
-# Create SessionLocal class
+# Session and Base classes
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create Base class
 Base = declarative_base()
 
 
-# Dependency to get DB session
+# Dependency for FastAPI
 def get_db():
     db = SessionLocal()
     try:
