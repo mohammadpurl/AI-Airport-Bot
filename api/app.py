@@ -50,20 +50,19 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:3000",  # برای توسعه لوکال فرانت‌اند
-    "http://localhost:4000",  # اگر بک‌اند و فرانت‌اند در یک پورت با هم تست می‌شوند (کمتر رایج)
-    "https://next-livekit-streaming.vercel.app",  # **اینجا باید آدرس دیپلوی شده فرانت‌اند روی Vercel را وارد کنید**
-    # می‌توانید wildcard هم استفاده کنید اگر دامنه ثابت نیست، اما توصیه نمی‌شود
-    "https://interactive-avatar-next-js-demo-2.vercel.app/",
-    "https://*.vercel.app",
+    o.strip()
+    for o in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4000"
+    ).split(",")
+    if o.strip()
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # origins,  # لیست دامنه‌هایی که اجازه دسترسی دارند
-    allow_credentials=True,  # اجازه ارسال کوکی‌ها در Cross-Origin
-    allow_methods=["*"],  # اجازه تمام متدها (GET, POST, PUT, DELETE, etc)
-    allow_headers=["*"],  # اجازه تمام هدرها
+    allow_origins=origins if origins else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 # # CORS Middleware
 # app.add_middleware(

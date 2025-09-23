@@ -310,6 +310,8 @@ def chat(request: ChatRequest):
 
             if can_write_files:
                 try:
+                    # Ensure audios directory exists
+                    os.makedirs("audios", exist_ok=True)
                     file_name = os.path.join("audios", f"message_{i}.mp3")
                     text_input = message["text"]
 
@@ -321,7 +323,14 @@ def chat(request: ChatRequest):
                     else:
                         logger.info("Using AvashowService for non-English TTS")
                         avashow_service.text_to_speech(text_input, file_name)
-                    logger.info(f"Audio file created: {file_name}")
+                    if os.path.exists(file_name):
+                        logger.info(
+                            f"Audio file created: {file_name} (size={os.path.getsize(file_name)} bytes)"
+                        )
+                    else:
+                        logger.warning(
+                            f"Expected audio file not found after TTS: {file_name}"
+                        )
 
                     wav_file = os.path.join("audios", f"message_{i}.wav")
                     json_file = os.path.join("audios", f"message_{i}.json")

@@ -46,14 +46,33 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL from environment variables"""
-    DB_USER = os.getenv("POSTGRES_USER", "postgres")
-    DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-    DB_HOST = os.getenv("POSTGRES_SERVER", "localhost")
-    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-    DB_NAME = os.getenv("POSTGRES_DB", "airport_bot")
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+        return db_url
 
-    if not DB_PASSWORD:
-        raise ValueError("POSTGRES_PASSWORD environment variable is not set")
+    DB_USER = os.getenv("POSTGRES_USER")
+    DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+    DB_HOST = os.getenv("POSTGRES_SERVER")
+    DB_PORT = os.getenv("POSTGRES_PORT")
+    DB_NAME = os.getenv("POSTGRES_DB")
+
+    missing = [
+        k
+        for k, v in {
+            "POSTGRES_USER": DB_USER,
+            "POSTGRES_PASSWORD": DB_PASSWORD,
+            "POSTGRES_SERVER": DB_HOST,
+            "POSTGRES_PORT": DB_PORT,
+            "POSTGRES_DB": DB_NAME,
+        }.items()
+        if not v
+    ]
+    if missing:
+        raise ValueError(
+            "Database not configured. Set DATABASE_URL or all of: " + ", ".join(missing)
+        )
 
     return f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
