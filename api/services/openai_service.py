@@ -13,7 +13,7 @@ class OpenAIService:
         # Create a session for connection pooling
         self.session = requests.Session()
         retries = Retry(
-            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
+            total=1, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504]
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
         # Set default headers
@@ -39,10 +39,10 @@ class OpenAIService:
             "language": language,
         }
 
-        # Try multiple times with different timeouts for Vercel cold start
-        for attempt in range(3):
+        # Optimized retry with shorter timeouts
+        for attempt in range(2):
             try:
-                timeout = 60 if attempt == 0 else 120  # Increase timeouts
+                timeout = 15 if attempt == 0 else 30  # Reduced timeouts
                 logger.info(
                     f"Calling external chat service (attempt {attempt + 1}): {self.url}"
                 )
@@ -55,6 +55,6 @@ class OpenAIService:
                 return result["messages"] if "messages" in result else result
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                if attempt == 2:
+                if attempt == 1:
                     logger.error(f"All attempts failed. Last error: {e}")
                     raise

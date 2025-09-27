@@ -341,12 +341,18 @@ def chat(request: ChatRequest):
 
                     # تبدیل متن به گفتار - انتخاب سرویس بر اساس زبان
                     logger.info(f"Converting text to speech: {text_input[:50]}...")
-                    if is_english:
-                        logger.info("Using ElevenLabsService for English TTS")
-                        elevenlabs_service.text_to_speech(text_input, file_name)
-                    else:
-                        logger.info("Using AvashowService for non-English TTS")
-                        avashow_service.text_to_speech(text_input, file_name)
+                    try:
+                        if is_english:
+                            logger.info("Using ElevenLabsService for English TTS")
+                            elevenlabs_service.text_to_speech(text_input, file_name)
+                        else:
+                            logger.info("Using AvashowService for non-English TTS")
+                            avashow_service.text_to_speech(text_input, file_name)
+                    except Exception as tts_error:
+                        logger.warning(
+                            f"TTS failed, skipping audio generation: {tts_error}"
+                        )
+                        # Continue without audio if TTS fails
                     if os.path.exists(file_name):
                         logger.info(
                             f"Audio file created: {file_name} (size={os.path.getsize(file_name)} bytes)"
