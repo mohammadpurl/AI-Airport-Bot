@@ -9,6 +9,7 @@ import os
 import logging
 import tempfile
 import re
+import socket
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO)
@@ -150,6 +151,29 @@ def play_introduction(language: str = "fa"):
     except Exception as e:
         logger.error(f"Error in /intro endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/test-connectivity")
+def test_connectivity():
+    try:
+        response = requests.get(
+            "https://elevenlab-test.vercel.app/assistant/health", timeout=30
+        )
+        response.raise_for_status()
+        return {"status": "success", "response": response.json()}
+    except Exception as e:
+        logger.error(f"Connectivity test failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/test-dns")
+def test_dns():
+    try:
+        ip = socket.gethostbyname("elevenlab-test.vercel.app")
+        return {"status": "success", "ip": ip}
+    except Exception as e:
+        logger.error(f"DNS resolution failed: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 @router.post("/chat", response_model=ChatResponse)

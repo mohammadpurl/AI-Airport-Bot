@@ -8,35 +8,45 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(override=True)
 
-# Get database configuration from environment variables
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_HOST = os.getenv("POSTGRES_SERVER")
-DB_PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
+# Prefer DATABASE_URL if provided (works best in Docker)
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Ensure all required environment variables are set
-missing_vars = [
-    var_name
-    for var_name, value in {
-        "POSTGRES_USER": DB_USER,
-        "POSTGRES_PASSWORD": DB_PASSWORD,
-        "POSTGRES_SERVER": DB_HOST,
-        "POSTGRES_PORT": DB_PORT,
-        "POSTGRES_DB": DB_NAME,
-    }.items()
-    if not value
-]
+if SQLALCHEMY_DATABASE_URL:
+    # Normalize url scheme if needed
+    if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+            "postgres://", "postgresql+psycopg://", 1
+        )
+else:
+    # Fallback to discrete env vars
+    DB_USER = os.getenv("POSTGRES_USER")
+    DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+    DB_HOST = os.getenv("POSTGRES_SERVER")
+    DB_PORT = os.getenv("POSTGRES_PORT")
+    DB_NAME = os.getenv("POSTGRES_DB")
 
-if missing_vars:
-    raise ValueError(
-        f"Missing required environment variables: {', '.join(missing_vars)}"
+    missing_vars = [
+        var_name
+        for var_name, value in {
+            "POSTGRES_USER": DB_USER,
+            "POSTGRES_PASSWORD": DB_PASSWORD,
+            "POSTGRES_SERVER": DB_HOST,
+            "POSTGRES_PORT": DB_PORT,
+            "POSTGRES_DB": DB_NAME,
+        }.items()
+        if not value
+    ]
+
+    if missing_vars:
+        # Helpful message but do not reference localhost implicitly
+        raise ValueError(
+            "Database is not configured. Set DATABASE_URL or all of: "
+            + ", ".join(missing_vars)
+        )
+
+    SQLALCHEMY_DATABASE_URL = (
+        f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
-
-# Build database URL
-SQLALCHEMY_DATABASE_URL = (
-    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
 
 
 # Create engine with connection pooling
