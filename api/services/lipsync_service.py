@@ -36,6 +36,19 @@ class LipSyncService:
                 rhubarb_exec = os.path.join("bin", "rhubarb.exe")
             else:
                 rhubarb_exec = os.path.join("./bin", "rhubarb")
+
+            logger.info(f"Looking for Rhubarb executable at: {rhubarb_exec}")
+            logger.info(f"Rhubarb executable exists: {os.path.exists(rhubarb_exec)}")
+            logger.info(f"Current working directory: {os.getcwd()}")
+            logger.info(f"bin directory exists: {os.path.exists('bin')}")
+
+            if not os.path.exists(rhubarb_exec):
+                logger.error(f"Rhubarb executable not found at: {rhubarb_exec}")
+                raise FileNotFoundError(f"Rhubarb not found at: {rhubarb_exec}")
+
+            logger.info(
+                f"Running Rhubarb command: {rhubarb_exec} -f json -o {json_path} {wav_path} -r phonetic"
+            )
             subprocess.run(
                 [
                     rhubarb_exec,

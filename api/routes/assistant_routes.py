@@ -182,6 +182,10 @@ def chat(request: ChatRequest):
 
     # Check if audio should be disabled for faster response
     disable_audio = os.getenv("DISABLE_AUDIO_GENERATION", "false").lower() == "true"
+    logger.info(
+        f"DISABLE_AUDIO_GENERATION environment variable: {os.getenv('DISABLE_AUDIO_GENERATION', 'not set')}"
+    )
+    logger.info(f"Audio generation disabled: {disable_audio}")
     if disable_audio:
         logger.info("Audio generation is disabled for faster response")
 
@@ -325,24 +329,38 @@ def chat(request: ChatRequest):
 
         # بررسی قابلیت نوشتن در مسیر
         can_write_files = True
+        logger.info(f"Checking write permissions for audio directory: {audio_dir}")
         try:
             test_file = os.path.join(audio_dir, "test_write.tmp")
             with open(test_file, "w") as f:
                 f.write("test")
             os.remove(test_file)
+            logger.info(f"Write test successful for directory: {audio_dir}")
         except Exception as e:
             logger.warning(f"Cannot write files to {audio_dir}: {e}")
             can_write_files = False
+            logger.info(f"can_write_files set to: {can_write_files}")
 
         for i, message in enumerate(openai_messages):
             logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
 
             if can_write_files and not disable_audio:
+                logger.info(
+                    f"Processing message {i} with audio generation - can_write_files: {can_write_files}, disable_audio: {disable_audio}"
+                )
                 try:
                     # Ensure audios directory exists
-                    os.makedirs("audios", exist_ok=True)
-                    file_name = os.path.join("audios", f"message_{i}.mp3")
+                    audios_dir = "audios"
+                    logger.info(f"Creating audios directory: {audios_dir}")
+                    os.makedirs(audios_dir, exist_ok=True)
+                    logger.info(
+                        f"Audios directory exists: {os.path.exists(audios_dir)}"
+                    )
+
+                    file_name = os.path.join(audios_dir, f"message_{i}.mp3")
                     text_input = message["text"]
+                    logger.info(f"Target audio file: {file_name}")
+                    logger.info(f"Text to convert: {text_input[:100]}...")
 
                     # تبدیل متن به گفتار - انتخاب سرویس بر اساس زبان
                     logger.info(f"Converting text to speech: {text_input[:50]}...")
@@ -418,6 +436,9 @@ def chat(request: ChatRequest):
                     )
             else:
                 # Skip audio generation for faster response
+                logger.info(
+                    f"Skipping audio generation for message {i} - can_write_files: {can_write_files}, disable_audio: {disable_audio}"
+                )
                 result_messages.append(
                     Message(
                         text=clean_text_from_json(message.get("text", "")),
