@@ -32,7 +32,6 @@ load_dotenv(override=True)
 # Validate required environment variables
 REQUIRED_ENV_VARS = [
     "OPENAI_API_KEY",
-    "KNOWLEDGE_SHEET_ID",
     "POSTGRES_PASSWORD",  # Added PostgreSQL password requirement
     "EXTERNAL_EXTRACTINFO_SERVICE_URL",  # Added external service URL requirement
 ]  # Removed POSTGRES_PASSWORD
