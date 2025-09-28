@@ -176,12 +176,55 @@ def test_dns():
         return {"status": "error", "message": str(e)}
 
 
+@router.post("/chat-text", response_model=ChatResponse)
+def chat_text_only(request: ChatRequest):
+    """Fast text-only response without audio processing"""
+    logger.info(f"Fast chat endpoint called with message: {request.message}")
+
+    openai_service = OpenAIService()
+
+    try:
+        # گرفتن پیام‌ها از OpenAI
+        logger.info(f"Getting response from OpenAI with language: {request.language}")
+        openai_messages: list = openai_service.get_assistant_response(
+            request.message, request.session_id, request.language
+        )
+        logger.info(f"OpenAI returned {len(openai_messages)} messages")
+
+        result_messages = []
+
+        for i, message in enumerate(openai_messages):
+            logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
+
+            # فقط متن بدون audio و lipsync
+            result_messages.append(
+                Message(
+                    text=clean_text_from_json(message.get("text", "")),
+                    audio=None,
+                    lipsync=None,
+                    facialExpression=message.get("facialExpression", "default"),
+                    animation=message.get("animation", "Idle"),
+                )
+            )
+
+        logger.info(
+            f"Fast chat completed successfully with {len(result_messages)} messages"
+        )
+        return ChatResponse(messages=result_messages)
+
+    except Exception as e:
+        logger.error(f"Error in fast chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     logger.info(f"Chat endpoint called with message: {request.message}")
 
     # Check if audio should be disabled for faster response
-    disable_audio = os.getenv("DISABLE_AUDIO_GENERATION", "false").lower() == "true"
+    disable_audio = (
+        os.getenv("DISABLE_AUDIO_GENERATION", "false").lower() == "true"
+    )  # Default to true for faster response
     logger.info(
         f"DISABLE_AUDIO_GENERATION environment variable: {os.getenv('DISABLE_AUDIO_GENERATION', 'not set')}"
     )
@@ -394,11 +437,33 @@ def chat(request: ChatRequest):
 
                     # تولید lipsync
                     logger.info(f"Generating lipsync for {wav_file}")
-                    lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+                    try:
+                        lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+                        logger.info(f"Lipsync generated successfully: {json_file}")
+                    except Exception as lipsync_error:
+                        logger.warning(f"Lipsync generation failed: {lipsync_error}")
+                        # Create empty lipsync data as fallback
+                        empty_lipsync = {
+                            "metadata": {"soundFile": "", "duration": 0},
+                            "mouthCues": [],
+                        }
+                        with open(json_file, "w") as f:
+                            import json
+
+                            json.dump(empty_lipsync, f)
+                        logger.info(f"Created empty lipsync fallback: {json_file}")
 
                     # خواندن فایل‌ها
-                    audio_base64 = file_service.audio_file_to_base64(file_name)
-                    lipsync_data = file_service.read_json_transcript(json_file)
+                    try:
+                        audio_base64 = file_service.audio_file_to_base64(file_name)
+                        lipsync_data = file_service.read_json_transcript(json_file)
+                        logger.info(f"Successfully read audio and lipsync files")
+                    except Exception as file_error:
+                        logger.warning(
+                            f"Failed to read audio/lipsync files: {file_error}"
+                        )
+                        audio_base64 = None
+                        lipsync_data = None
 
                     result_messages.append(
                         Message(

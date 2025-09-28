@@ -22,8 +22,8 @@ class OpenAIService:
 
         adapter = HTTPAdapter(
             max_retries=retries,
-            pool_connections=10,
-            pool_maxsize=20,
+            pool_connections=20,  # افزایش از 10 به 20
+            pool_maxsize=50,  # افزایش از 20 به 50
             pool_block=False,
         )
         self.session.mount("https://", adapter)
@@ -34,9 +34,7 @@ class OpenAIService:
             {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "User-Agent": "AirportBot/1.0",
-                "Connection": "keep-alive",
-                "Keep-Alive": "timeout=30, max=100",
+                "User-Agent": "curl/7.68.0",  # استفاده از curl user-agent
             }
         )
 
@@ -48,6 +46,36 @@ class OpenAIService:
             "session_id": session_id,
             "language": language,
         }
+
+        # تست مستقیم بدون connection pooling
+        use_direct_connection = (
+            os.getenv("USE_DIRECT_CONNECTION", "true").lower() == "true"
+        )
+        logger.info(f"USE_DIRECT_CONNECTION: {use_direct_connection}")
+
+        if use_direct_connection:
+            logger.info(f"Testing direct connection to: {self.url}")
+            try:
+                import requests as direct_requests
+
+                response = direct_requests.post(
+                    self.url,
+                    json=payload,
+                    timeout=30,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "User-Agent": "curl/7.68.0",
+                    },
+                    verify=False,
+                )
+                response.raise_for_status()
+                result = response.json()
+                logger.info(f"Direct connection successful: {result}")
+                return result["messages"] if "messages" in result else result
+            except Exception as direct_error:
+                logger.warning(f"Direct connection failed: {direct_error}")
+                logger.info("Falling back to session-based connection")
 
         # Optimized retry with tuned timeouts per attempt
         for attempt in range(3):
