@@ -180,6 +180,11 @@ def test_dns():
 def chat(request: ChatRequest):
     logger.info(f"Chat endpoint called with message: {request.message}")
 
+    # Check if audio should be disabled for faster response
+    disable_audio = os.getenv("DISABLE_AUDIO_GENERATION", "false").lower() == "true"
+    if disable_audio:
+        logger.info("Audio generation is disabled for faster response")
+
     openai_service = OpenAIService()
     avashow_service = AvashowService()
     elevenlabs_service = ElevenLabsService()
@@ -332,7 +337,7 @@ def chat(request: ChatRequest):
         for i, message in enumerate(openai_messages):
             logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
 
-            if can_write_files:
+            if can_write_files and not disable_audio:
                 try:
                     # Ensure audios directory exists
                     os.makedirs("audios", exist_ok=True)
@@ -389,15 +394,15 @@ def chat(request: ChatRequest):
                     logger.info(f"Message {i} processed successfully with audio")
 
                     # پاک کردن فایل‌های موقت
-                    # try:
-                    #     os.remove(file_name)
-                    #     os.remove(wav_file)
-                    #     os.remove(json_file)
-                    #     logger.info(f"Temporary files cleaned up for message {i}")
-                    # except Exception as e:
-                    #     logger.warning(
-                    #         f"Could not clean up temporary files for message {i}: {e}"
-                    #     )
+                    try:
+                        os.remove(file_name)
+                        os.remove(wav_file)
+                        os.remove(json_file)
+                        logger.info(f"Temporary files cleaned up for message {i}")
+                    except Exception as e:
+                        logger.warning(
+                            f"Could not clean up temporary files for message {i}: {e}"
+                        )
 
                 except Exception as e:
                     logger.error(f"Error processing message {i} with audio: {e}")
@@ -411,6 +416,17 @@ def chat(request: ChatRequest):
                             animation=message.get("animation", "Idle"),
                         )
                     )
+            else:
+                # Skip audio generation for faster response
+                result_messages.append(
+                    Message(
+                        text=clean_text_from_json(message.get("text", "")),
+                        audio=None,
+                        lipsync=None,
+                        facialExpression=message.get("facialExpression", "default"),
+                        animation=message.get("animation", "Idle"),
+                    )
+                )
 
         logger.info(f"Chat completed successfully with {len(result_messages)} messages")
         return ChatResponse(messages=result_messages)

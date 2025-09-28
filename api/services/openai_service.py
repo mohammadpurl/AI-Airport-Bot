@@ -1,8 +1,8 @@
 import os
-import requests
+import requests  # type: ignore[import]
 import logging
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter  # type: ignore[import]
+from urllib3.util.retry import Retry  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
@@ -10,23 +10,33 @@ logger = logging.getLogger(__name__)
 class OpenAIService:
     def __init__(self):
         self.url = os.getenv("EXTERNAL_CHAT_SERVICE_URL")
-        # Create a session for connection pooling
+        # Create a session for connection pooling with robust retry strategy
         self.session = requests.Session()
+
         retries = Retry(
-            total=1, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504]
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            raise_on_status=False,
         )
-        self.session.mount("https://", HTTPAdapter(max_retries=retries))
-        # Set default headers
+
+        adapter = HTTPAdapter(
+            max_retries=retries,
+            pool_connections=10,
+            pool_maxsize=20,
+            pool_block=False,
+        )
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
+        # Set default headers with keep-alive hints
         self.session.headers.update(
             {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
+                "User-Agent": "AirportBot/1.0",
                 "Connection": "keep-alive",
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache",
+                "Keep-Alive": "timeout=30, max=100",
             }
         )
 
@@ -39,10 +49,10 @@ class OpenAIService:
             "language": language,
         }
 
-        # Optimized retry with shorter timeouts
-        for attempt in range(2):
+        # Optimized retry with tuned timeouts per attempt
+        for attempt in range(3):
             try:
-                timeout = 15 if attempt == 0 else 30  # Reduced timeouts
+                timeout = 15 if attempt == 0 else (30 if attempt == 1 else 45)
                 logger.info(
                     f"Calling external chat service (attempt {attempt + 1}): {self.url}"
                 )
@@ -55,6 +65,6 @@ class OpenAIService:
                 return result["messages"] if "messages" in result else result
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                if attempt == 1:
+                if attempt == 2:
                     logger.error(f"All attempts failed. Last error: {e}")
                     raise

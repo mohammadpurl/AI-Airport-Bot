@@ -1,8 +1,8 @@
 import os
-import requests
+import requests  # type: ignore[import]
 import logging
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter  # type: ignore[import]
+from urllib3.util.retry import Retry  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
