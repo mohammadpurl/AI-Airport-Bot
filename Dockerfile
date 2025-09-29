@@ -1,3 +1,4 @@
+                                                                             Dockerfile
 # syntax=docker/dockerfile:1
 
 FROM python:3.12-slim
@@ -23,10 +24,11 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 
 RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./bin/rhubarb
+RUN chmod +x ./bin/rhubarb
 
 EXPOSE 4000
 
 # Default command (PORT can be overridden at runtime)
 CMD ["/bin/sh", "-c", "./entrypoint.sh"]
-
 
