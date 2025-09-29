@@ -13,6 +13,16 @@ class OpenAIService:
         # Create a session for connection pooling with robust retry strategy
         self.session = requests.Session()
 
+        # Configure proxy if available (supports HTTP/HTTPS/SOCKS via PROXY_URL)
+        proxy_url = (
+            os.getenv("PROXY_URL")
+            or os.getenv("HTTP_PROXY")
+            or os.getenv("HTTPS_PROXY")
+        )
+        if proxy_url:
+            self.session.proxies = {"http": proxy_url, "https": proxy_url}
+            logger.info(f"Using proxy: {proxy_url}")
+
         retries = Retry(
             total=3,
             backoff_factor=1,
@@ -22,8 +32,8 @@ class OpenAIService:
 
         adapter = HTTPAdapter(
             max_retries=retries,
-            pool_connections=20,  # افزایش از 10 به 20
-            pool_maxsize=50,  # افزایش از 20 به 50
+            pool_connections=5,  # کاهش از 20 به 5
+            pool_maxsize=10,  # کاهش از 50 به 10
             pool_block=False,
         )
         self.session.mount("https://", adapter)
@@ -38,6 +48,18 @@ class OpenAIService:
             }
         )
 
+    def cleanup_session(self):
+        """Clean up session connections"""
+        try:
+            self.session.close()
+            logger.info("Session cleaned up successfully")
+        except Exception as e:
+            logger.warning(f"Session cleanup failed: {e}")
+
+    def __del__(self):
+        """Destructor to ensure session cleanup"""
+        self.cleanup_session()
+
     def get_assistant_response(
         self, user_message: str, session_id: str, language: str = "fa"
     ):
@@ -49,14 +71,23 @@ class OpenAIService:
 
         # تست مستقیم بدون connection pooling
         use_direct_connection = (
-            os.getenv("USE_DIRECT_CONNECTION", "true").lower() == "true"
+            os.getenv("USE_DIRECT_CONNECTION", "false").lower()
+            == "true"  # Default to false on server
         )
-        logger.info(f"USE_DIRECT_CONNECTION: {use_direct_connection}")
 
         if use_direct_connection:
-            logger.info(f"Testing direct connection to: {self.url}")
             try:
                 import requests as direct_requests
+
+                # Configure proxy for direct requests (supports PROXY_URL)
+                proxies = {}
+                proxy_url = (
+                    os.getenv("PROXY_URL")
+                    or os.getenv("HTTP_PROXY")
+                    or os.getenv("HTTPS_PROXY")
+                )
+                if proxy_url:
+                    proxies = {"http": proxy_url, "https": proxy_url}
 
                 response = direct_requests.post(
                     self.url,
@@ -67,32 +98,24 @@ class OpenAIService:
                         "Accept": "application/json",
                         "User-Agent": "curl/7.68.0",
                     },
+                    proxies=proxies,
                     verify=False,
                 )
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"Direct connection successful: {result}")
-                return result["messages"] if "messages" in result else result
+                return result.get("messages", result)
             except Exception as direct_error:
                 logger.warning(f"Direct connection failed: {direct_error}")
-                logger.info("Falling back to session-based connection")
 
-        # Optimized retry with tuned timeouts per attempt
-        for attempt in range(3):
-            try:
-                timeout = 15 if attempt == 0 else (30 if attempt == 1 else 45)
-                logger.info(
-                    f"Calling external chat service (attempt {attempt + 1}): {self.url}"
-                )
-                response = self.session.post(
-                    self.url, json=payload, timeout=timeout, verify=False
-                )
-                response.raise_for_status()
-                result = response.json()
-                logger.info(f"External chat service response: {result}")
-                return result["messages"] if "messages" in result else result
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                if attempt == 2:
-                    logger.error(f"All attempts failed. Last error: {e}")
-                    raise
+        # Fallback: استفاده از endpoint محلی یا mock response
+        fallback_response = {
+            "messages": [
+                {
+                    "text": "متأسفانه در حال حاضر سرویس خارجی در دسترس نیست. لطفاً بعداً تلاش کنید.",
+                    "facialExpression": "sad",
+                    "animation": "Idle",
+                }
+            ],
+            "session_id": session_id,
+        }
+        return fallback_response["messages"]

@@ -27,7 +27,17 @@ class ExtractInfoService:
             logger.info(f"Calling external extractInfo service: {self.url}")
             logger.info(f"Payload: {payload}")
 
-            response = requests.post(self.url, json=payload, timeout=30)
+            # Configure proxy if available (HTTP/HTTPS/SOCKS)
+            proxy_url = (
+                os.getenv("PROXY_URL")
+                or os.getenv("HTTP_PROXY")
+                or os.getenv("HTTPS_PROXY")
+            )
+            proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
+            response = requests.post(
+                self.url, json=payload, timeout=30, proxies=proxies
+            )
             response.raise_for_status()
             result = response.json()
 
