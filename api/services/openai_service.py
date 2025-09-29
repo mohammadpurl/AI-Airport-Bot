@@ -13,25 +13,6 @@ class OpenAIService:
         # Create a session for connection pooling with robust retry strategy
         self.session = requests.Session()
 
-        # Configure proxy if available (supports HTTP/HTTPS/SOCKS via PROXY_URL)
-        proxy_url = (
-            os.getenv("PROXY_URL")
-            or os.getenv("HTTP_PROXY")
-            or os.getenv("HTTPS_PROXY")
-        )
-        if proxy_url:
-            self.session.proxies = {"http": proxy_url, "https": proxy_url}
-            logger.info(f"Using proxy: {proxy_url}")
-        else:
-            logger.info("Using direct connection (no proxy configured)")
-
-        logger.info(
-            "OpenAIService initialized: url=%s, pool=(conn=%s,max=%s)",
-            self.url,
-            5,
-            10,
-        )
-
         retries = Retry(
             total=3,
             backoff_factor=1,
@@ -44,6 +25,7 @@ class OpenAIService:
             pool_connections=5,  # کاهش از 20 به 5
             pool_maxsize=10,  # کاهش از 50 به 10
             pool_block=False,
+            pool_recycle=300,  # اضافه کردن recycle هر 5 دقیقه
         )
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
@@ -72,8 +54,6 @@ class OpenAIService:
     def get_assistant_response(
         self, user_message: str, session_id: str, language: str = "fa"
     ):
-        import time
-
         payload = {
             "message": user_message,
             "session_id": session_id,
@@ -85,22 +65,47 @@ class OpenAIService:
             os.getenv("USE_DIRECT_CONNECTION", "false").lower()
             == "true"  # Default to false on server
         )
+        logger.info(f"USE_DIRECT_CONNECTION: {use_direct_connection}")
+
+        # Reset connection pool if needed
+        if hasattr(self.session, "poolmanager"):
+            self.session.poolmanager.clear()
+            logger.info("Connection pool cleared")
 
         if use_direct_connection:
+            logger.info(f"Testing direct connection to: {self.url}")
+
+            # تست DNS resolution
+            try:
+                import socket
+
+                host = "elevenlab-test.vercel.app"
+                ip = socket.gethostbyname(host)
+                logger.info(f"DNS resolution successful: {host} -> {ip}")
+            except Exception as dns_error:
+                logger.warning(f"DNS resolution failed: {dns_error}")
+
+            # تست connectivity
+            try:
+                import subprocess
+
+                ping_proc = subprocess.run(
+                    ["ping", "-c", "1", "elevenlab-test.vercel.app"],
+                    capture_output=True,
+                    timeout=10,
+                )
+                if ping_proc.returncode == 0:
+                    logger.info("Ping test successful")
+                else:
+                    logger.warning(
+                        f"Ping test failed: {ping_proc.stderr.decode() if ping_proc.stderr else 'Unknown error'}"
+                    )
+            except Exception as ping_error:
+                logger.warning(f"Ping test error: {ping_error}")
+
             try:
                 import requests as direct_requests
 
-                # Configure proxy for direct requests (supports PROXY_URL)
-                proxies = {}
-                proxy_url = (
-                    os.getenv("PROXY_URL")
-                    or os.getenv("HTTP_PROXY")
-                    or os.getenv("HTTPS_PROXY")
-                )
-                if proxy_url:
-                    proxies = {"http": proxy_url, "https": proxy_url}
-
-                start = time.time()
                 response = direct_requests.post(
                     self.url,
                     json=payload,
@@ -110,21 +115,18 @@ class OpenAIService:
                         "Accept": "application/json",
                         "User-Agent": "curl/7.68.0",
                     },
-                    proxies=proxies,
                     verify=False,
                 )
                 response.raise_for_status()
                 result = response.json()
-                logger.info(
-                    "Direct call success: status=%s timeMs=%d",
-                    response.status_code,
-                    int((time.time() - start) * 1000),
-                )
-                return result.get("messages", result)
+                logger.info(f"Direct connection successful: {result}")
+                return result["messages"] if "messages" in result else result
             except Exception as direct_error:
                 logger.warning(f"Direct connection failed: {direct_error}")
+                logger.info("Falling back to session-based connection")
 
         # Fallback: استفاده از endpoint محلی یا mock response
+        logger.warning("All external connections failed, using fallback response")
         fallback_response = {
             "messages": [
                 {
@@ -135,4 +137,5 @@ class OpenAIService:
             ],
             "session_id": session_id,
         }
+        logger.info(f"Fallback response: {fallback_response}")
         return fallback_response["messages"]

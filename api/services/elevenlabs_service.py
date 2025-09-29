@@ -19,18 +19,13 @@ class ElevenLabsService:
             logger.warning(
                 "EXTERNAL_ELEVENLABS_SERVICE_URL is not set; ElevenLabs TTS will fail"
             )
+        else:
+            logger.info(
+                f"ElevenLabs service initialized (url set, voice_id={'set' if self.voice_id else 'not set'})"
+            )
+
         # Create a session for connection pooling
         self.session = requests.Session()
-
-        # Configure proxy if available (supports HTTP/HTTPS/SOCKS via PROXY_URL)
-        proxy_url = (
-            os.getenv("PROXY_URL")
-            or os.getenv("HTTP_PROXY")
-            or os.getenv("HTTPS_PROXY")
-        )
-        if proxy_url:
-            self.session.proxies = {"http": proxy_url, "https": proxy_url}
-            logger.info(f"Using proxy: {proxy_url}")
         retries = Retry(
             total=1, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504]
         )
@@ -51,6 +46,8 @@ class ElevenLabsService:
 
     def text_to_speech(self, text: str, file_name: str):
         try:
+            logger.info(f"Converting text to speech: {text[:50]}...")
+            logger.info(f"Output file: {file_name}")
             if not self.base_url:
                 raise RuntimeError(
                     "EXTERNAL_ELEVENLABS_SERVICE_URL is not configured in environment"
@@ -77,10 +74,10 @@ class ElevenLabsService:
             # Optimized retry with shorter timeouts
             for attempt in range(2):
                 try:
-                    import time
-
-                    start = time.time()
                     timeout = 20 if attempt == 0 else 40  # Reduced timeouts
+                    logger.info(
+                        f"ElevenLabs TTS attempt {attempt + 1} with timeout {timeout}s"
+                    )
 
                     response = self.session.post(
                         self.base_url,
@@ -90,6 +87,9 @@ class ElevenLabsService:
                         verify=False,
                     )
 
+                    logger.info(
+                        f"ElevenLabs TTS response status={response.status_code} length={len(response.content)}"
+                    )
                     response.raise_for_status()
 
                     content_type = response.headers.get("Content-Type", "")
@@ -110,16 +110,15 @@ class ElevenLabsService:
                     with open(file_name, "wb") as f:
                         f.write(response.content)
 
-                    logger.info(
-                        "ElevenLabs TTS success: status=%s bytes=%d timeMs=%d",
-                        response.status_code,
-                        len(response.content or b""),
-                        int((time.time() - start) * 1000),
-                    )
+                    logger.info(f"Audio file created successfully: {file_name}")
                     return  # Success, exit the retry loop
 
                 except Exception as e:
+                    logger.warning(f"ElevenLabs TTS attempt {attempt + 1} failed: {e}")
                     if attempt == 1:  # Last attempt
+                        logger.error(
+                            f"All ElevenLabs TTS attempts failed. Last error: {e}"
+                        )
                         raise
                     continue
 

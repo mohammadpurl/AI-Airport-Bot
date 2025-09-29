@@ -24,33 +24,14 @@ class ExtractInfoService:
         }
 
         try:
-            logger.info(
-                "ExtractInfo: calling service url=%s items=%d",
-                self.url,
-                len(payload.get("messages", [])),
-            )
+            logger.info(f"Calling external extractInfo service: {self.url}")
+            logger.info(f"Payload: {payload}")
 
-            # Configure proxy if available (HTTP/HTTPS/SOCKS)
-            proxy_url = (
-                os.getenv("PROXY_URL")
-                or os.getenv("HTTP_PROXY")
-                or os.getenv("HTTPS_PROXY")
-            )
-            proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-
-            import time
-
-            start = time.time()
-            response = requests.post(
-                self.url, json=payload, timeout=30, proxies=proxies
-            )
+            response = requests.post(self.url, json=payload, timeout=30)
             response.raise_for_status()
             result = response.json()
-            logger.info(
-                "ExtractInfo: success status=%s timeMs=%d",
-                response.status_code,
-                int((time.time() - start) * 1000),
-            )
+
+            logger.info(f"External extractInfo service response: {result}")
 
             # Validate and return the result
             # The external service should return the same format as before
