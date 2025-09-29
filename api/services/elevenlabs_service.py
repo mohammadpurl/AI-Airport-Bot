@@ -77,6 +77,9 @@ class ElevenLabsService:
             # Optimized retry with shorter timeouts
             for attempt in range(2):
                 try:
+                    import time
+
+                    start = time.time()
                     timeout = 20 if attempt == 0 else 40  # Reduced timeouts
 
                     response = self.session.post(
@@ -107,6 +110,12 @@ class ElevenLabsService:
                     with open(file_name, "wb") as f:
                         f.write(response.content)
 
+                    logger.info(
+                        "ElevenLabs TTS success: status=%s bytes=%d timeMs=%d",
+                        response.status_code,
+                        len(response.content or b""),
+                        int((time.time() - start) * 1000),
+                    )
                     return  # Success, exit the retry loop
 
                 except Exception as e:

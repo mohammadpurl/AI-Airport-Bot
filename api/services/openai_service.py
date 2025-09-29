@@ -22,6 +22,15 @@ class OpenAIService:
         if proxy_url:
             self.session.proxies = {"http": proxy_url, "https": proxy_url}
             logger.info(f"Using proxy: {proxy_url}")
+        else:
+            logger.info("Using direct connection (no proxy configured)")
+
+        logger.info(
+            "OpenAIService initialized: url=%s, pool=(conn=%s,max=%s)",
+            self.url,
+            5,
+            10,
+        )
 
         retries = Retry(
             total=3,
@@ -63,6 +72,8 @@ class OpenAIService:
     def get_assistant_response(
         self, user_message: str, session_id: str, language: str = "fa"
     ):
+        import time
+
         payload = {
             "message": user_message,
             "session_id": session_id,
@@ -89,6 +100,7 @@ class OpenAIService:
                 if proxy_url:
                     proxies = {"http": proxy_url, "https": proxy_url}
 
+                start = time.time()
                 response = direct_requests.post(
                     self.url,
                     json=payload,
@@ -103,6 +115,11 @@ class OpenAIService:
                 )
                 response.raise_for_status()
                 result = response.json()
+                logger.info(
+                    "Direct call success: status=%s timeMs=%d",
+                    response.status_code,
+                    int((time.time() - start) * 1000),
+                )
                 return result.get("messages", result)
             except Exception as direct_error:
                 logger.warning(f"Direct connection failed: {direct_error}")
