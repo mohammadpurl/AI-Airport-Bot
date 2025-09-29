@@ -25,7 +25,6 @@ class OpenAIService:
             pool_connections=5,  # کاهش از 20 به 5
             pool_maxsize=10,  # کاهش از 50 به 10
             pool_block=False,
-            pool_recycle=300,  # اضافه کردن recycle هر 5 دقیقه
         )
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
