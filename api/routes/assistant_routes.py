@@ -176,61 +176,9 @@ def test_dns():
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/chat-text", response_model=ChatResponse)
-def chat_text_only(request: ChatRequest):
-    """Fast text-only response without audio processing"""
-    logger.info(f"Fast chat endpoint called with message: {request.message}")
-
-    openai_service = OpenAIService()
-
-    try:
-        # گرفتن پیام‌ها از OpenAI
-        logger.info(f"Getting response from OpenAI with language: {request.language}")
-        openai_messages: list = openai_service.get_assistant_response(
-            request.message, request.session_id, request.language
-        )
-        logger.info(f"OpenAI returned {len(openai_messages)} messages")
-
-        result_messages = []
-
-        for i, message in enumerate(openai_messages):
-            logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
-
-            # فقط متن بدون audio و lipsync
-            result_messages.append(
-                Message(
-                    text=clean_text_from_json(message.get("text", "")),
-                    audio=None,
-                    lipsync=None,
-                    facialExpression=message.get("facialExpression", "default"),
-                    animation=message.get("animation", "Idle"),
-                )
-            )
-
-        logger.info(
-            f"Fast chat completed successfully with {len(result_messages)} messages"
-        )
-        return ChatResponse(messages=result_messages)
-
-    except Exception as e:
-        logger.error(f"Error in fast chat endpoint: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     logger.info(f"Chat endpoint called with message: {request.message}")
-
-    # Check if audio should be disabled for faster response
-    disable_audio = (
-        os.getenv("DISABLE_AUDIO_GENERATION", "false").lower() == "true"
-    )  # Default to true for faster response
-    logger.info(
-        f"DISABLE_AUDIO_GENERATION environment variable: {os.getenv('DISABLE_AUDIO_GENERATION', 'not set')}"
-    )
-    logger.info(f"Audio generation disabled: {disable_audio}")
-    if disable_audio:
-        logger.info("Audio generation is disabled for faster response")
 
     openai_service = OpenAIService()
     avashow_service = AvashowService()
@@ -372,38 +320,36 @@ def chat(request: ChatRequest):
 
         # بررسی قابلیت نوشتن در مسیر
         can_write_files = True
-        logger.info(f"Checking write permissions for audio directory: {audio_dir}")
         try:
             test_file = os.path.join(audio_dir, "test_write.tmp")
             with open(test_file, "w") as f:
                 f.write("test")
             os.remove(test_file)
-            logger.info(f"Write test successful for directory: {audio_dir}")
         except Exception as e:
             logger.warning(f"Cannot write files to {audio_dir}: {e}")
             can_write_files = False
-            logger.info(f"can_write_files set to: {can_write_files}")
 
-        for i, message in enumerate(openai_messages):
-            logger.info(f"Processing message {i}: {message.get('text', 'No text')}")
-
-            if can_write_files and not disable_audio:
-                logger.info(
-                    f"Processing message {i} with audio generation - can_write_files: {can_write_files}, disable_audio: {disable_audio}"
+        for i, message in enumerate(openai_messages or []):
+            try:
+                text_value = (
+                    message.get("text") if isinstance(message, dict) else str(message)
                 )
+            except Exception:
+                text_value = str(message)
+            logger.info(
+                f"Processing message {i}: {text_value if text_value else 'No text'}"
+            )
+
+            if can_write_files:
                 try:
                     # Ensure audios directory exists
-                    audios_dir = "audios"
-                    logger.info(f"Creating audios directory: {audios_dir}")
-                    os.makedirs(audios_dir, exist_ok=True)
-                    logger.info(
-                        f"Audios directory exists: {os.path.exists(audios_dir)}"
+                    os.makedirs("audios", exist_ok=True)
+                    file_name = os.path.join("audios", f"message_{i}.mp3")
+                    text_input = (
+                        message.get("text", "")
+                        if isinstance(message, dict)
+                        else str(message)
                     )
-
-                    file_name = os.path.join(audios_dir, f"message_{i}.mp3")
-                    text_input = message["text"]
-                    logger.info(f"Target audio file: {file_name}")
-                    logger.info(f"Text to convert: {text_input[:100]}...")
 
                     # تبدیل متن به گفتار - انتخاب سرویس بر اساس زبان
                     logger.info(f"Converting text to speech: {text_input[:50]}...")
@@ -437,55 +383,41 @@ def chat(request: ChatRequest):
 
                     # تولید lipsync
                     logger.info(f"Generating lipsync for {wav_file}")
-                    try:
-                        lipsync_service.wav_to_lipsync_json(wav_file, json_file)
-                        logger.info(f"Lipsync generated successfully: {json_file}")
-                    except Exception as lipsync_error:
-                        logger.warning(f"Lipsync generation failed: {lipsync_error}")
-                        # Create empty lipsync data as fallback
-                        empty_lipsync = {
-                            "metadata": {"soundFile": "", "duration": 0},
-                            "mouthCues": [],
-                        }
-                        with open(json_file, "w") as f:
-                            import json
-
-                            json.dump(empty_lipsync, f)
-                        logger.info(f"Created empty lipsync fallback: {json_file}")
+                    lipsync_service.wav_to_lipsync_json(wav_file, json_file)
 
                     # خواندن فایل‌ها
-                    try:
-                        audio_base64 = file_service.audio_file_to_base64(file_name)
-                        lipsync_data = file_service.read_json_transcript(json_file)
-                        logger.info(f"Successfully read audio and lipsync files")
-                    except Exception as file_error:
-                        logger.warning(
-                            f"Failed to read audio/lipsync files: {file_error}"
-                        )
-                        audio_base64 = None
-                        lipsync_data = None
+                    audio_base64 = file_service.audio_file_to_base64(file_name)
+                    lipsync_data = file_service.read_json_transcript(json_file)
 
                     result_messages.append(
                         Message(
                             text=clean_text_from_json(message.get("text", "")),
                             audio=audio_base64,
                             lipsync=lipsync_data,
-                            facialExpression=message.get("facialExpression", "default"),
-                            animation=message.get("animation", "Idle"),
+                            facialExpression=(
+                                message.get("facialExpression", "default")
+                                if isinstance(message, dict)
+                                else "default"
+                            ),
+                            animation=(
+                                message.get("animation", "Idle")
+                                if isinstance(message, dict)
+                                else "Idle"
+                            ),
                         )
                     )
                     logger.info(f"Message {i} processed successfully with audio")
 
                     # پاک کردن فایل‌های موقت
-                    try:
-                        os.remove(file_name)
-                        os.remove(wav_file)
-                        os.remove(json_file)
-                        logger.info(f"Temporary files cleaned up for message {i}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Could not clean up temporary files for message {i}: {e}"
-                        )
+                    # try:
+                    #     os.remove(file_name)
+                    #     os.remove(wav_file)
+                    #     os.remove(json_file)
+                    #     logger.info(f"Temporary files cleaned up for message {i}")
+                    # except Exception as e:
+                    #     logger.warning(
+                    #         f"Could not clean up temporary files for message {i}: {e}"
+                    #     )
 
                 except Exception as e:
                     logger.error(f"Error processing message {i} with audio: {e}")
@@ -495,24 +427,18 @@ def chat(request: ChatRequest):
                             text=clean_text_from_json(message.get("text", "")),
                             audio=None,
                             lipsync=None,
-                            facialExpression=message.get("facialExpression", "default"),
-                            animation=message.get("animation", "Idle"),
+                            facialExpression=(
+                                message.get("facialExpression", "default")
+                                if isinstance(message, dict)
+                                else "default"
+                            ),
+                            animation=(
+                                message.get("animation", "Idle")
+                                if isinstance(message, dict)
+                                else "Idle"
+                            ),
                         )
                     )
-            else:
-                # Skip audio generation for faster response
-                logger.info(
-                    f"Skipping audio generation for message {i} - can_write_files: {can_write_files}, disable_audio: {disable_audio}"
-                )
-                result_messages.append(
-                    Message(
-                        text=clean_text_from_json(message.get("text", "")),
-                        audio=None,
-                        lipsync=None,
-                        facialExpression=message.get("facialExpression", "default"),
-                        animation=message.get("animation", "Idle"),
-                    )
-                )
 
         logger.info(f"Chat completed successfully with {len(result_messages)} messages")
         return ChatResponse(messages=result_messages)
@@ -568,51 +494,6 @@ def test_avashow_service(text_input: str):
         raise HTTPException(
             status_code=500, detail=f"Avashow service test failed: {str(e)}"
         )
-
-
-@router.get("/health-detailed")
-def detailed_health():
-    """Detailed health check with resource monitoring"""
-    import psutil
-    import os
-
-    status = {
-        "status": "running",
-        "version": "1.0.0",
-        "environment": os.getenv("ENVIRONMENT", "development"),
-        "resources": {
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage("/").percent,
-            "cpu_percent": psutil.cpu_percent(interval=1),
-        },
-        "connections": {
-            "database": "checking...",
-            "openai": "checking...",
-            "google_sheets": "checking...",
-        },
-    }
-
-    # DB connection test
-    try:
-        from api.database.database import get_db
-        from sqlalchemy import text
-
-        db = next(get_db())
-        db.execute(text("SELECT 1"))
-        status["connections"]["database"] = "connected"
-    except Exception as e:
-        status["connections"]["database"] = f"not available: {e}"
-
-    # OpenAI test
-    try:
-        from api.services.openai_service import OpenAIService
-
-        _ = OpenAIService()
-        status["connections"]["openai"] = "configured"
-    except Exception as e:
-        status["connections"]["openai"] = f"error: {e}"
-
-    return status
 
 
 @router.get("/health")

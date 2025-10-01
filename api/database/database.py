@@ -53,19 +53,19 @@ else:
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     poolclass=QueuePool,
-    pool_size=10,
-    max_overflow=20,
-    pool_timeout=30,
-    pool_recycle=3600,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=60,
+    pool_recycle=1800,
     pool_pre_ping=True,
     connect_args={
-        "connect_timeout": 10,
+        "connect_timeout": 30,
         "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 10,
-        "keepalives_count": 5,
+        "keepalives_idle": 60,
+        "keepalives_interval": 30,
+        "keepalives_count": 10,
         "application_name": "airport_bot",
-        "options": "-c statement_timeout=60000",
+        "options": "-c statement_timeout=30000",
     },
 )
 

@@ -32,6 +32,7 @@ load_dotenv(override=True)
 # Validate required environment variables
 REQUIRED_ENV_VARS = [
     "OPENAI_API_KEY",
+    "KNOWLEDGE_SHEET_ID",
     "POSTGRES_PASSWORD",  # Added PostgreSQL password requirement
     "EXTERNAL_EXTRACTINFO_SERVICE_URL",  # Added external service URL requirement
 ]  # Removed POSTGRES_PASSWORD
@@ -50,9 +51,7 @@ app = FastAPI(
 
 origins = [
     o.strip()
-    for o in os.getenv(
-        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:4000"
-    ).split(",")
+    for o in os.getenv("ALLOWED_ORIGINS", "https://4theyeai.ir").split(",")
     if o.strip()
 ]
 
