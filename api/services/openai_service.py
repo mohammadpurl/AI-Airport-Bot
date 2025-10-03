@@ -4,8 +4,12 @@ import logging
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import socket
+from hashlib import md5  # برای hash message + session
 
 logger = logging.getLogger(__name__)
+
+# Cache dict for duplicate prevention (session-based)
+_cache = {}  # key: session_id + message_hash, value: normalized response
 
 
 class OpenAIService:
@@ -20,14 +24,14 @@ class OpenAIService:
             {
                 "accept": "application/json",
                 "Content-Type": "application/json",
-                "User-Agent": "curl/8.9.1",  # هم‌راستا با cURL
+                "User-Agent": "curl/8.9.1",
                 "Accept-Language": "en-US,en;q=0.9",
                 "Connection": "keep-alive",
                 "Cache-Control": "no-cache",
                 "Pragma": "no-cache",
             }
         )
-        # Set proxies from env vars (HTTP_PROXY and HTTPS_PROXY)
+        # Set proxies from env vars
         http_proxy = os.getenv("HTTP_PROXY")
         https_proxy = os.getenv("HTTPS_PROXY")
         if http_proxy or https_proxy:
@@ -42,6 +46,12 @@ class OpenAIService:
     def get_assistant_response(
         self, user_message: str, session_id: str, language: str = "fa"
     ):
+        # Cache check for duplicate
+        cache_key = md5(f"{session_id}_{user_message}".encode()).hexdigest()
+        if cache_key in _cache:
+            logger.info(f"Cache hit for key {cache_key} - returning cached response")
+            return _cache[cache_key]
+
         logger.info("=" * 80)
         logger.info("🚀 STARTING OpenAI Service API Call")
         logger.info("=" * 80)
@@ -52,6 +62,7 @@ class OpenAIService:
         logger.info(f"   - Session ID: '{session_id}'")
         logger.info(f"   - Language: '{language}'")
         logger.info(f"   - Service URL: '{self.url}'")
+        logger.info(f"   - Cache Key: {cache_key}")
 
         # Log session configuration
         logger.info(f"🔧 Session Configuration:")
@@ -186,6 +197,10 @@ class OpenAIService:
                 logger.info(f"   - Normalized Messages Count: {len(normalized)}")
                 for i, msg in enumerate(normalized):
                     logger.info(f"   - Message {i}: {msg}")
+
+                # Cache the response
+                _cache[cache_key] = normalized
+                logger.info(f"Cache saved for key {cache_key}")
 
                 logger.info("=" * 80)
                 logger.info("🎉 OpenAI Service API Call SUCCESSFUL")
