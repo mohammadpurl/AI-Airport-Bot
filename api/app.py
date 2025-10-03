@@ -57,7 +57,14 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
+    allow_origins=[
+        "*",  # موقت برای dev/Swagger – production حذف کن
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://62.60.213.42:3000",  # IP عمومی سرور
+        "https://4theyeai.ir",  # domain production
+        "http://4theyeai.ir",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
