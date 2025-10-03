@@ -106,6 +106,17 @@ def test_text_cleaning():
 def play_introduction(language: str = "fa"):
     """Prepare audio+lip-sync for introduction in selected language (fa or en)."""
     try:
+        logger.info("=" * 80)
+        logger.info("🚀 STARTING /intro")
+        logger.info("=" * 80)
+        # Basic environment diagnostics to trace permission issues
+        try:
+            cwd = os.getcwd()
+            logger.info(f"CWD: {cwd}")
+            logger.info(f"Absolute CWD: {os.path.abspath(cwd)}")
+        except Exception as env_err:
+            logger.warning(f"Could not get CWD: {env_err}")
+
         file_service = FileService()
         lipsync_service = LipSyncService()
 
@@ -122,19 +133,58 @@ def play_introduction(language: str = "fa"):
 
         # Convert mp3 -> wav if needed
         if not os.path.exists(wav_file):
-            lipsync_service.mp3_to_wav(mp3_file, wav_file)
+            logger.info(f"Converting MP3 to WAV for intro: {mp3_file} -> {wav_file}")
+            try:
+                lipsync_service.mp3_to_wav(mp3_file, wav_file)
+            except PermissionError as pe:
+                logger.error(f"PermissionError during ffmpeg conversion: {pe}")
+                logger.error(f"mp3 path: {mp3_file}, wav path: {wav_file}")
+                # Surface the exact error
+                raise HTTPException(
+                    status_code=500, detail=f"ffmpeg permission error: {pe}"
+                )
+            except Exception as conv_err:
+                logger.error(f"Error during MP3->WAV conversion: {conv_err}")
+                raise
 
         # Generate lipsync json
-        lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+        logger.info(f"Generating lip-sync JSON for intro: {wav_file} -> {json_file}")
+        try:
+            # Pre-flight diagnostics for rhubarb location/permissions
+            try:
+                candidate = os.path.abspath(os.path.join(os.getcwd(), "bin", "rhubarb"))
+                if os.path.exists(candidate):
+                    st = os.stat(candidate)
+                    logger.info(
+                        f"rhubarb candidate: {candidate}, mode: {oct(st.st_mode)}, size: {st.st_size}"
+                    )
+                    logger.info(
+                        f"os.access(X_OK)={os.access(candidate, os.X_OK)}, os.access(R_OK)={os.access(candidate, os.R_OK)}"
+                    )
+                else:
+                    logger.info(f"rhubarb candidate not found at: {candidate}")
+            except Exception as diag_err:
+                logger.warning(f"Failed pre-flight rhubarb diagnostics: {diag_err}")
+
+            lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+        except PermissionError as pe:
+            logger.error(f"PermissionError during rhubarb execution: {pe}")
+            logger.error(f"wav path: {wav_file}, json path: {json_file}")
+            raise HTTPException(
+                status_code=500, detail=f"rhubarb permission error: {pe}"
+            )
+        except Exception as lipsync_err:
+            logger.error(f"Error generating lip-sync JSON: {lipsync_err}")
+            raise
 
         # Read back audio and json
         audio_base64 = file_service.audio_file_to_base64(mp3_file)
         lipsync_data = file_service.read_json_transcript(json_file)
 
         text = (
-            "Hi! I'm Bina, I'm here to make your trip easier. Where are you traveling today? Where would you like to start?"
+            "Hello, I am Binad, the AI CIP assistant for Imam Khomeini Airport and Mashhad, and I am ready to help you with CIP reservations or CIP services."
             if is_english
-            else "سلام! من بینادهستم، اینجا کنارتم که سفرت رو راحت کنم. امروز کجا قراره سفر کنی؟ دوست داری از کجا شروع کنیم؟"
+            else "سلام! من بیناد هستم، دستیار هوش مصنوعی CIP فرودگاه امام خمینی و مشهد. آماده‌ام تا در مورد رزرو یا خدمات CIP به شما کمک کنم."
         )
 
         message = Message(
@@ -145,6 +195,7 @@ def play_introduction(language: str = "fa"):
             animation="Idle",  # "Talking_1",
         )
 
+        logger.info("✅ /intro completed successfully")
         return ChatResponse(messages=[message])
 
     except HTTPException:
