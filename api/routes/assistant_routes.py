@@ -10,6 +10,7 @@ import logging
 import tempfile
 import re
 import socket
+import requests
 
 # تنظیم لاگر
 logging.basicConfig(level=logging.INFO)
@@ -178,17 +179,51 @@ def test_dns():
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    logger.info(f"Chat endpoint called with message: {request.message}")
+    logger.info("=" * 100)
+    logger.info("🚀 STARTING /chat ENDPOINT")
+    logger.info("=" * 100)
 
-    openai_service = OpenAIService()
-    avashow_service = AvashowService()
-    elevenlabs_service = ElevenLabsService()
-    lipsync_service = LipSyncService()
-    file_service = FileService()
-    api_key = get_avashow_api_key()
+    # Log incoming request details
+    logger.info(f"📝 Incoming Request Details:")
+    logger.info(f"   - Message: '{request.message}'")
+    logger.info(f"   - Session ID: '{request.session_id}'")
+    logger.info(f"   - Language: '{request.language}'")
+    logger.info(f"   - Request Type: {type(request)}")
+    logger.info(
+        f"   - Request Dict: {request.dict() if hasattr(request, 'dict') else 'N/A'}"
+    )
 
+    # Initialize services
+    logger.info("🔧 Initializing Services:")
+    try:
+        openai_service = OpenAIService()
+        logger.info("   ✅ OpenAIService initialized")
+
+        avashow_service = AvashowService()
+        logger.info("   ✅ AvashowService initialized")
+
+        elevenlabs_service = ElevenLabsService()
+        logger.info("   ✅ ElevenLabsService initialized")
+
+        lipsync_service = LipSyncService()
+        logger.info("   ✅ LipSyncService initialized")
+
+        file_service = FileService()
+        logger.info("   ✅ FileService initialized")
+
+        api_key = get_avashow_api_key()
+        logger.info(f"   ✅ Avashow API Key: {'Present' if api_key else 'Missing'}")
+
+    except Exception as service_error:
+        logger.error(f"❌ Service initialization failed: {service_error}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service initialization failed: {str(service_error)}",
+        )
+
+    # Check for empty message
     if not request.message:
-        logger.info("No message provided, returning default messages")
+        logger.info("📭 No message provided, returning default messages")
         # پیام پیش‌فرض (مانند Node)
         default_messages = []
 
@@ -247,9 +282,20 @@ def chat(request: ChatRequest):
         return ChatResponse(messages=default_messages)
 
     # Validate required API keys depending on language
+    logger.info("🔑 Validating API Keys:")
     is_english = (request.language or "").lower().startswith("en")
-    if (not os.getenv("OPENAI_API_KEY")) or (not is_english and not api_key):
-        logger.warning("API keys missing for the requested operation")
+    logger.info(f"   - Language: '{request.language}' -> Is English: {is_english}")
+
+    openai_key = os.getenv("OPENAI_API_KEY")
+    logger.info(f"   - OpenAI API Key: {'Present' if openai_key else 'Missing'}")
+    logger.info(f"   - Avashow API Key: {'Present' if api_key else 'Missing'}")
+
+    if (not openai_key) or (not is_english and not api_key):
+        logger.warning("❌ API keys missing for the requested operation")
+        logger.warning(f"   - OpenAI Key Missing: {not openai_key}")
+        logger.warning(
+            f"   - Avashow Key Missing (for non-English): {not is_english and not api_key}"
+        )
         api_messages = []
 
         # بررسی وجود فایل‌های API warning
@@ -306,107 +352,237 @@ def chat(request: ChatRequest):
 
     try:
         # گرفتن پیام‌ها از OpenAI
-        logger.info(f"Getting response from OpenAI with language: {request.language}")
+        logger.info("🤖 Calling OpenAI Service:")
+        logger.info(f"   - Message: '{request.message}'")
+        logger.info(f"   - Session ID: '{request.session_id}'")
+        logger.info(f"   - Language: '{request.language}'")
+
         openai_messages: list = openai_service.get_assistant_response(
             request.message, request.session_id, request.language
         )
-        logger.info(f"OpenAI returned {len(openai_messages)} messages")
+
+        logger.info(f"✅ OpenAI Service Response:")
+        logger.info(
+            f"   - Messages Count: {len(openai_messages) if openai_messages else 0}"
+        )
+        logger.info(f"   - Messages Type: {type(openai_messages)}")
+        logger.info(f"   - Messages Content: {openai_messages}")
 
         result_messages = []
 
         # استفاده از مسیر قابل نوشتن
+        logger.info("📁 Setting up Audio Directory:")
         audio_dir = get_temp_audio_dir()
-        logger.info(f"Using audio directory: {audio_dir}")
+        logger.info(f"   - Audio Directory: {audio_dir}")
+        logger.info(f"   - Directory Absolute Path: {os.path.abspath(audio_dir)}")
 
         # بررسی قابلیت نوشتن در مسیر
+        logger.info("✍️ Testing File Write Permissions:")
         can_write_files = True
         try:
             test_file = os.path.join(audio_dir, "test_write.tmp")
+            logger.info(f"   - Test File Path: {test_file}")
             with open(test_file, "w") as f:
                 f.write("test")
             os.remove(test_file)
+            logger.info("   ✅ Write permissions confirmed")
         except Exception as e:
-            logger.warning(f"Cannot write files to {audio_dir}: {e}")
+            logger.warning(f"   ❌ Cannot write files to {audio_dir}: {e}")
             can_write_files = False
 
+        logger.info("🔄 Processing Messages:")
+        logger.info(
+            f"   - Total Messages to Process: {len(openai_messages) if openai_messages else 0}"
+        )
+
         for i, message in enumerate(openai_messages or []):
+            logger.info(
+                f"📝 Processing Message {i + 1}/{len(openai_messages) if openai_messages else 0}:"
+            )
+            logger.info(f"   - Message Type: {type(message)}")
+            logger.info(f"   - Message Content: {message}")
+
             try:
                 text_value = (
                     message.get("text") if isinstance(message, dict) else str(message)
                 )
-            except Exception:
+                logger.info(f"   - Extracted Text: '{text_value}'")
+            except Exception as extract_error:
                 text_value = str(message)
+                logger.warning(f"   - Text extraction failed: {extract_error}")
+                logger.info(f"   - Fallback Text: '{text_value}'")
+
             logger.info(
-                f"Processing message {i}: {text_value if text_value else 'No text'}"
+                f"   - Final Text Value: '{text_value if text_value else 'No text'}'"
             )
 
             if can_write_files:
+                logger.info(f"   🎵 Audio Processing Enabled for Message {i + 1}")
                 try:
                     # Ensure audios directory exists
+                    logger.info(f"   📁 Ensuring audios directory exists")
                     os.makedirs("audios", exist_ok=True)
                     file_name = os.path.join("audios", f"message_{i}.mp3")
+                    logger.info(f"   📄 Target Audio File: {file_name}")
+
                     text_input = (
                         message.get("text", "")
                         if isinstance(message, dict)
                         else str(message)
                     )
+                    logger.info(
+                        f"   📝 Text Input for TTS: '{text_input[:100]}{'...' if len(text_input) > 100 else ''}'"
+                    )
 
                     # تبدیل متن به گفتار - انتخاب سرویس بر اساس زبان
-                    logger.info(f"Converting text to speech: {text_input[:50]}...")
+                    logger.info(f"   🔊 Converting text to speech:")
+                    logger.info(
+                        f"      - Language: {'English' if is_english else 'Non-English'}"
+                    )
+                    logger.info(f"      - Text Length: {len(text_input)} characters")
+
                     try:
                         if is_english:
-                            logger.info("Using ElevenLabsService for English TTS")
+                            logger.info(
+                                "      - Using ElevenLabsService for English TTS"
+                            )
                             elevenlabs_service.text_to_speech(text_input, file_name)
                         else:
-                            logger.info("Using AvashowService for non-English TTS")
+                            logger.info(
+                                "      - Using AvashowService for non-English TTS"
+                            )
                             avashow_service.text_to_speech(text_input, file_name)
+                        logger.info("      ✅ TTS conversion completed")
                     except Exception as tts_error:
+                        logger.warning(f"      ❌ TTS failed: {tts_error}")
                         logger.warning(
-                            f"TTS failed, skipping audio generation: {tts_error}"
+                            f"      - Error Type: {type(tts_error).__name__}"
+                        )
+                        logger.warning(
+                            f"      - Skipping audio generation for this message"
                         )
                         # Continue without audio if TTS fails
+
+                    # Check if audio file was created
                     if os.path.exists(file_name):
+                        file_size = os.path.getsize(file_name)
+                        logger.info(f"      ✅ Audio file created successfully:")
+                        logger.info(f"         - File: {file_name}")
+                        logger.info(f"         - Size: {file_size} bytes")
                         logger.info(
-                            f"Audio file created: {file_name} (size={os.path.getsize(file_name)} bytes)"
+                            f"         - Absolute Path: {os.path.abspath(file_name)}"
                         )
                     else:
                         logger.warning(
-                            f"Expected audio file not found after TTS: {file_name}"
+                            f"      ❌ Expected audio file not found after TTS: {file_name}"
                         )
 
                     wav_file = os.path.join("audios", f"message_{i}.wav")
                     json_file = os.path.join("audios", f"message_{i}.json")
+                    logger.info(f"   📄 Lip Sync Files:")
+                    logger.info(f"      - WAV File: {wav_file}")
+                    logger.info(f"      - JSON File: {json_file}")
 
                     # تبدیل mp3 به wav
-                    logger.info(f"Converting {file_name} to {wav_file}")
-                    lipsync_service.mp3_to_wav(file_name, wav_file)
+                    logger.info(f"   🔄 Converting MP3 to WAV:")
+                    logger.info(f"      - Source: {file_name}")
+                    logger.info(f"      - Target: {wav_file}")
+                    try:
+                        lipsync_service.mp3_to_wav(file_name, wav_file)
+                        logger.info(f"      ✅ MP3 to WAV conversion completed")
+
+                        # Check WAV file
+                        if os.path.exists(wav_file):
+                            wav_size = os.path.getsize(wav_file)
+                            logger.info(f"      - WAV file size: {wav_size} bytes")
+                        else:
+                            logger.warning(f"      ❌ WAV file not created: {wav_file}")
+                    except Exception as wav_error:
+                        logger.error(
+                            f"      ❌ MP3 to WAV conversion failed: {wav_error}"
+                        )
 
                     # تولید lipsync
-                    logger.info(f"Generating lipsync for {wav_file}")
-                    lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+                    logger.info(f"   🎭 Generating Lip Sync:")
+                    logger.info(f"      - Source WAV: {wav_file}")
+                    logger.info(f"      - Target JSON: {json_file}")
+                    try:
+                        lipsync_service.wav_to_lipsync_json(wav_file, json_file)
+                        logger.info(f"      ✅ Lip sync generation completed")
+
+                        # Check JSON file
+                        if os.path.exists(json_file):
+                            json_size = os.path.getsize(json_file)
+                            logger.info(f"      - JSON file size: {json_size} bytes")
+                        else:
+                            logger.warning(
+                                f"      ❌ JSON file not created: {json_file}"
+                            )
+                    except Exception as lipsync_error:
+                        logger.error(
+                            f"      ❌ Lip sync generation failed: {lipsync_error}"
+                        )
 
                     # خواندن فایل‌ها
-                    audio_base64 = file_service.audio_file_to_base64(file_name)
-                    lipsync_data = file_service.read_json_transcript(json_file)
-
-                    result_messages.append(
-                        Message(
-                            text=clean_text_from_json(message.get("text", "")),
-                            audio=audio_base64,
-                            lipsync=lipsync_data,
-                            facialExpression=(
-                                message.get("facialExpression", "default")
-                                if isinstance(message, dict)
-                                else "default"
-                            ),
-                            animation=(
-                                message.get("animation", "Idle")
-                                if isinstance(message, dict)
-                                else "Idle"
-                            ),
+                    logger.info(f"   📖 Reading Generated Files:")
+                    try:
+                        audio_base64 = file_service.audio_file_to_base64(file_name)
+                        logger.info(
+                            f"      ✅ Audio file converted to base64 (length: {len(audio_base64) if audio_base64 else 0})"
                         )
+                    except Exception as audio_error:
+                        logger.error(
+                            f"      ❌ Audio base64 conversion failed: {audio_error}"
+                        )
+                        audio_base64 = None
+
+                    try:
+                        lipsync_data = file_service.read_json_transcript(json_file)
+                        logger.info(f"      ✅ Lip sync data read successfully")
+                        logger.info(f"      - Lip sync data type: {type(lipsync_data)}")
+                        logger.info(
+                            f"      - Lip sync data length: {len(str(lipsync_data)) if lipsync_data else 0}"
+                        )
+                    except Exception as lipsync_read_error:
+                        logger.error(
+                            f"      ❌ Lip sync data reading failed: {lipsync_read_error}"
+                        )
+                        lipsync_data = None
+
+                    # Create final message
+                    logger.info(f"   📝 Creating Final Message:")
+                    cleaned_text = clean_text_from_json(message.get("text", ""))
+                    facial_expression = (
+                        message.get("facialExpression", "default")
+                        if isinstance(message, dict)
+                        else "default"
                     )
-                    logger.info(f"Message {i} processed successfully with audio")
+                    animation = (
+                        message.get("animation", "Idle")
+                        if isinstance(message, dict)
+                        else "Idle"
+                    )
+
+                    logger.info(
+                        f"      - Cleaned Text: '{cleaned_text[:100]}{'...' if len(cleaned_text) > 100 else ''}'"
+                    )
+                    logger.info(f"      - Facial Expression: '{facial_expression}'")
+                    logger.info(f"      - Animation: '{animation}'")
+                    logger.info(f"      - Audio Present: {audio_base64 is not None}")
+                    logger.info(f"      - Lip Sync Present: {lipsync_data is not None}")
+
+                    final_message = Message(
+                        text=cleaned_text,
+                        audio=audio_base64,
+                        lipsync=lipsync_data,
+                        facialExpression=facial_expression,
+                        animation=animation,
+                    )
+
+                    result_messages.append(final_message)
+                    logger.info(
+                        f"   ✅ Message {i + 1} processed successfully with audio"
+                    )
 
                     # پاک کردن فایل‌های موقت
                     # try:
@@ -420,31 +596,96 @@ def chat(request: ChatRequest):
                     #     )
 
                 except Exception as e:
-                    logger.error(f"Error processing message {i} with audio: {e}")
-                    # در صورت خطا، پیام بدون audio و lipsync برگردان
-                    result_messages.append(
-                        Message(
-                            text=clean_text_from_json(message.get("text", "")),
-                            audio=None,
-                            lipsync=None,
-                            facialExpression=(
-                                message.get("facialExpression", "default")
-                                if isinstance(message, dict)
-                                else "default"
-                            ),
-                            animation=(
-                                message.get("animation", "Idle")
-                                if isinstance(message, dict)
-                                else "Idle"
-                            ),
-                        )
+                    logger.error(
+                        f"   ❌ Error processing message {i + 1} with audio: {e}"
                     )
+                    logger.error(f"      - Error Type: {type(e).__name__}")
+                    logger.error(f"      - Error Details: {str(e)}")
+                    logger.info(f"      - Creating fallback message without audio")
 
-        logger.info(f"Chat completed successfully with {len(result_messages)} messages")
+                    # در صورت خطا، پیام بدون audio و lipsync برگردان
+                    fallback_message = Message(
+                        text=clean_text_from_json(message.get("text", "")),
+                        audio=None,
+                        lipsync=None,
+                        facialExpression=(
+                            message.get("facialExpression", "default")
+                            if isinstance(message, dict)
+                            else "default"
+                        ),
+                        animation=(
+                            message.get("animation", "Idle")
+                            if isinstance(message, dict)
+                            else "Idle"
+                        ),
+                    )
+                    result_messages.append(fallback_message)
+                    logger.info(f"   ✅ Fallback message {i + 1} created successfully")
+            else:
+                logger.info(
+                    f"   📝 File Writing Disabled - Creating Text-Only Message {i + 1}"
+                )
+                # Create message without audio when file writing is disabled
+                text_only_message = Message(
+                    text=clean_text_from_json(message.get("text", "")),
+                    audio=None,
+                    lipsync=None,
+                    facialExpression=(
+                        message.get("facialExpression", "default")
+                        if isinstance(message, dict)
+                        else "default"
+                    ),
+                    animation=(
+                        message.get("animation", "Idle")
+                        if isinstance(message, dict)
+                        else "Idle"
+                    ),
+                )
+                result_messages.append(text_only_message)
+                logger.info(f"   ✅ Text-only message {i + 1} created successfully")
+
+        logger.info("=" * 100)
+        logger.info("🎉 CHAT ENDPOINT COMPLETED SUCCESSFULLY")
+        logger.info("=" * 100)
+        logger.info(f"📊 Final Results:")
+        logger.info(f"   - Total Messages Processed: {len(result_messages)}")
+        logger.info(
+            f"   - Messages with Audio: {sum(1 for msg in result_messages if msg.audio is not None)}"
+        )
+        logger.info(
+            f"   - Messages with Lip Sync: {sum(1 for msg in result_messages if msg.lipsync is not None)}"
+        )
+        logger.info(f"   - File Write Enabled: {can_write_files}")
+        logger.info(f"   - Audio Directory: {audio_dir}")
+
+        # Log summary of each message
+        for i, msg in enumerate(result_messages):
+            logger.info(f"   📝 Message {i + 1}:")
+            logger.info(f"      - Text Length: {len(msg.text) if msg.text else 0}")
+            logger.info(f"      - Has Audio: {msg.audio is not None}")
+            logger.info(f"      - Has Lip Sync: {msg.lipsync is not None}")
+            logger.info(f"      - Facial Expression: {msg.facialExpression}")
+            logger.info(f"      - Animation: {msg.animation}")
+
         return ChatResponse(messages=result_messages)
 
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
+        logger.error("=" * 100)
+        logger.error("💥 CHAT ENDPOINT FAILED")
+        logger.error("=" * 100)
+        logger.error(f"❌ Error Details:")
+        logger.error(f"   - Error Type: {type(e).__name__}")
+        logger.error(f"   - Error Message: {str(e)}")
+        logger.error(f"   - Error Args: {e.args if hasattr(e, 'args') else 'N/A'}")
+        logger.error(
+            f"   - Request Message: '{request.message if 'request' in locals() else 'N/A'}'"
+        )
+        logger.error(
+            f"   - Request Session ID: '{request.session_id if 'request' in locals() else 'N/A'}'"
+        )
+        logger.error(
+            f"   - Request Language: '{request.language if 'request' in locals() else 'N/A'}'"
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
