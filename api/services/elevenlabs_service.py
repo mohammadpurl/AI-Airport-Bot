@@ -14,6 +14,8 @@ class ElevenLabsService:
         self.api_key = os.getenv(
             "ELEVENLABS_API_KEY"
         )  # optional, if calling ElevenLabs directly
+        proxy_url = os.getenv("PROXY_URL")
+        self.proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
 
         if not self.base_url:
             logger.warning(
@@ -30,6 +32,12 @@ class ElevenLabsService:
             total=1, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504]
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
+        if self.proxies:
+            try:
+                self.session.proxies.update(self.proxies)
+                logger.info("Proxy configured for ElevenLabsService session")
+            except Exception as e:
+                logger.warning(f"Failed to set proxy on ElevenLabsService session: {e}")
         # Set default headers
         self.session.headers.update(
             {
@@ -88,7 +96,7 @@ class ElevenLabsService:
                     )
 
                     logger.info(
-                        f"ElevenLabs TTS response status={response.status_code} length={len(response.content)}"
+                        f"ElevenLabs TTS response status={response.status_code} length={len(response.content)} proxies={'on' if self.proxies else 'off'}"
                     )
                     response.raise_for_status()
 

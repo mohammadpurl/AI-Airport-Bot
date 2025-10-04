@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 class ExtractInfoService:
     def __init__(self):
         self.url = os.getenv("EXTERNAL_EXTRACTINFO_SERVICE_URL")
+        proxy_url = os.getenv("PROXY_URL")
+        self.proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+        if self.proxies:
+            logger.info("Proxy configured for ExtractInfoService")
         if not self.url:
             raise ValueError(
                 "EXTERNAL_EXTRACTINFO_SERVICE_URL environment variable is not set"
@@ -27,11 +31,15 @@ class ExtractInfoService:
             logger.info(f"Calling external extractInfo service: {self.url}")
             logger.info(f"Payload: {payload}")
 
-            response = requests.post(self.url, json=payload, timeout=30)
+            response = requests.post(
+                self.url, json=payload, timeout=30, proxies=self.proxies
+            )
             response.raise_for_status()
             result = response.json()
 
-            logger.info(f"External extractInfo service response: {result}")
+            logger.info(
+                f"External extractInfo service response status={response.status_code} proxies={'on' if self.proxies else 'off'}"
+            )
 
             # Validate and return the result
             # The external service should return the same format as before
