@@ -14,8 +14,6 @@ class ElevenLabsService:
         self.api_key = os.getenv(
             "ELEVENLABS_API_KEY"
         )  # optional, if calling ElevenLabs directly
-        proxy_url = os.getenv("PROXY_URL")
-        self.proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
 
         if not self.base_url:
             logger.warning(
@@ -29,28 +27,31 @@ class ElevenLabsService:
         # Create a session for connection pooling
         self.session = requests.Session()
         retries = Retry(
-            total=1, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504]
+            total=3, backoff_factor=2.0, status_forcelist=[429, 500, 502, 503, 504]
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
-        if self.proxies:
-            try:
-                self.session.proxies.update(self.proxies)
-                logger.info("Proxy configured for ElevenLabsService session")
-            except Exception as e:
-                logger.warning(f"Failed to set proxy on ElevenLabsService session: {e}")
-        # Set default headers
         self.session.headers.update(
             {
+                "accept": "application/json",
                 "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": "curl/8.9.1",
                 "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
                 "Cache-Control": "no-cache",
                 "Pragma": "no-cache",
             }
         )
+        # Set proxies from env vars
+        http_proxy = os.getenv("HTTP_PROXY")
+        https_proxy = os.getenv("HTTPS_PROXY")
+        if http_proxy or https_proxy:
+            proxies = {}
+            if http_proxy:
+                proxies["http://"] = http_proxy
+            if https_proxy:
+                proxies["https://"] = https_proxy
+            self.session.proxies.update(proxies)
+            logger.info(f"Proxies set: {proxies}")
 
     def text_to_speech(self, text: str, file_name: str):
         try:
@@ -96,7 +97,7 @@ class ElevenLabsService:
                     )
 
                     logger.info(
-                        f"ElevenLabs TTS response status={response.status_code} length={len(response.content)} proxies={'on' if self.proxies else 'off'}"
+                        f"ElevenLabs TTS response status={response.status_code} length={len(response.content)}"
                     )
                     response.raise_for_status()
 

@@ -1,6 +1,8 @@
 import os
 import requests
 import logging
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from api.schemas.extract_info_schema import ExtractInfoRequest
 
 logger = logging.getLogger(__name__)
@@ -9,10 +11,34 @@ logger = logging.getLogger(__name__)
 class ExtractInfoService:
     def __init__(self):
         self.url = os.getenv("EXTERNAL_EXTRACTINFO_SERVICE_URL")
-        proxy_url = os.getenv("PROXY_URL")
-        self.proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-        if self.proxies:
-            logger.info("Proxy configured for ExtractInfoService")
+        self.session = requests.Session()
+        retries = Retry(
+            total=3, backoff_factor=2.0, status_forcelist=[429, 500, 502, 503, 504]
+        )
+        self.session.mount("https://", HTTPAdapter(max_retries=retries))
+        self.session.headers.update(
+            {
+                "accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "curl/8.9.1",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "keep-alive",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+            }
+        )
+        # Set proxies from env vars
+        http_proxy = os.getenv("HTTP_PROXY")
+        https_proxy = os.getenv("HTTPS_PROXY")
+        if http_proxy or https_proxy:
+            proxies = {}
+            if http_proxy:
+                proxies["http://"] = http_proxy
+            if https_proxy:
+                proxies["https://"] = https_proxy
+            self.session.proxies.update(proxies)
+            logger.info(f"Proxies set: {proxies}")
+
         if not self.url:
             raise ValueError(
                 "EXTERNAL_EXTRACTINFO_SERVICE_URL environment variable is not set"
@@ -31,14 +57,14 @@ class ExtractInfoService:
             logger.info(f"Calling external extractInfo service: {self.url}")
             logger.info(f"Payload: {payload}")
 
-            response = requests.post(
-                self.url, json=payload, timeout=30, proxies=self.proxies
+            response = self.session.post(
+                self.url, json=payload, timeout=30, verify=False
             )
             response.raise_for_status()
             result = response.json()
 
             logger.info(
-                f"External extractInfo service response status={response.status_code} proxies={'on' if self.proxies else 'off'}"
+                f"External extractInfo service response status={response.status_code} (no proxy)"
             )
 
             # Validate and return the result

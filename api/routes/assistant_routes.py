@@ -184,7 +184,7 @@ def play_introduction(language: str = "fa"):
         text = (
             "Hello, I am Binad, the AI CIP assistant for Imam Khomeini Airport and Mashhad, and I am ready to help you with CIP reservations or CIP services."
             if is_english
-            else "سلام! من بیناد هستم، دستیار هوش مصنوعی CIP فرودگاه امام خمینی و مشهد. آماده‌ام تا در مورد رزرو یا خدمات CIP به شما کمک کنم."
+            else "سلام! من نکسا هستم، دستیار هوش مصنوعی CIP فرودگاه امام خمینی و مشهد. آماده‌ام تا در مورد رزرو یا خدمات CIP به شما کمک کنم."
         )
 
         message = Message(
@@ -192,7 +192,7 @@ def play_introduction(language: str = "fa"):
             audio=audio_base64,
             lipsync=lipsync_data,
             facialExpression="smile",
-            animation="Idle",  # "Talking_1",
+            animation="StandingStandingIdle",  # "Talking_1",
         )
 
         logger.info("✅ /intro completed successfully")
@@ -467,6 +467,98 @@ def chat(request: ChatRequest):
                 f"   - Final Text Value: '{text_value if text_value else 'No text'}'"
             )
 
+            # Check if this is an error response from the external service
+            is_error_response = (
+                isinstance(message, dict)
+                and message.get("text") == "ERROR_SERVICE_UNAVAILABLE"
+                and message.get("is_error", False)
+            )
+
+            if is_error_response:
+                logger.info("🚨 Processing ERROR response from external service")
+                error_language = message.get("language", "fa")
+                logger.info(f"   - Error Language: {error_language}")
+
+                # Determine error audio file based on language
+                if error_language.lower().startswith("en"):
+                    error_audio_file = "audios/errorMessage_en.mp3"
+                    error_text_file = "audios/errorMessage_en.txt"
+                    logger.info("   - Using English error message")
+                else:
+                    error_audio_file = "audios/errorMessage.mp3"
+                    error_text_file = "audios/errorMessage.txt"
+                    logger.info("   - Using Persian error message")
+
+                # Read error text
+                try:
+                    with open(error_text_file, "r", encoding="utf-8") as f:
+                        error_text = f.read().strip()
+                    logger.info(f"   - Error Text: '{error_text}'")
+                except Exception as e:
+                    logger.error(f"   - Failed to read error text file: {e}")
+                    error_text = "خطا در دریافت پاسخ از سرور"
+
+                # Create error message with audio and lipsync
+                try:
+                    if os.path.exists(error_audio_file):
+                        logger.info(f"   - Error audio file found: {error_audio_file}")
+
+                        # Convert MP3 to WAV for lipsync
+                        error_wav_file = error_audio_file.replace(".mp3", ".wav")
+                        error_json_file = error_audio_file.replace(".mp3", ".json")
+
+                        logger.info(
+                            f"   - Converting error audio to WAV: {error_wav_file}"
+                        )
+                        lipsync_service.mp3_to_wav(error_audio_file, error_wav_file)
+
+                        logger.info(f"   - Generating error lipsync: {error_json_file}")
+                        lipsync_service.wav_to_lipsync_json(
+                            error_wav_file, error_json_file
+                        )
+
+                        # Read audio and lipsync data
+                        audio_base64 = file_service.audio_file_to_base64(
+                            error_audio_file
+                        )
+                        lipsync_data = file_service.read_json_transcript(
+                            error_json_file
+                        )
+
+                        logger.info(
+                            "   ✅ Error message with audio and lipsync created successfully"
+                        )
+
+                        error_message = Message(
+                            text=error_text,
+                            audio=audio_base64,
+                            lipsync=lipsync_data,
+                            facialExpression="sad",
+                            animation="Sad",
+                        )
+
+                        result_messages.append(error_message)
+                        logger.info(f"   ✅ Error message {i + 1} added to response")
+                        continue  # Skip normal processing for this message
+                    else:
+                        logger.warning(
+                            f"   - Error audio file not found: {error_audio_file}"
+                        )
+                except Exception as e:
+                    logger.error(f"   - Failed to process error audio: {e}")
+
+                # Fallback: create error message without audio
+                fallback_error_message = Message(
+                    text=error_text,
+                    audio=None,
+                    lipsync=None,
+                    facialExpression="sad",
+                    animation="Sad",
+                )
+                result_messages.append(fallback_error_message)
+                logger.info(f"   ✅ Fallback error message {i + 1} added to response")
+                continue  # Skip normal processing for this message
+
             if can_write_files:
                 logger.info(f"   🎵 Audio Processing Enabled for Message {i + 1}")
                 try:
@@ -609,9 +701,10 @@ def chat(request: ChatRequest):
                         else "default"
                     )
                     animation = (
-                        message.get("animation", "Idle")
+                        message.get("animation", "StandingIdle")
                         if isinstance(message, dict)
-                        else "Idle"
+                        and message.get("animation") is not None
+                        else "StandingIdle"
                     )
 
                     logger.info(
@@ -665,9 +758,10 @@ def chat(request: ChatRequest):
                             else "default"
                         ),
                         animation=(
-                            message.get("animation", "Idle")
+                            message.get("animation", "StandingIdle")
                             if isinstance(message, dict)
-                            else "Idle"
+                            and message.get("animation") is not None
+                            else "StandingIdle"
                         ),
                     )
                     result_messages.append(fallback_message)
@@ -687,9 +781,10 @@ def chat(request: ChatRequest):
                         else "default"
                     ),
                     animation=(
-                        message.get("animation", "Idle")
+                        message.get("animation", "StandingIdle")
                         if isinstance(message, dict)
-                        else "Idle"
+                        and message.get("animation") is not None
+                        else "StandingIdle"
                     ),
                 )
                 result_messages.append(text_only_message)

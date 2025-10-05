@@ -17,7 +17,7 @@ class OpenAIService:
         self.url = os.getenv("EXTERNAL_CHAT_SERVICE_URL")
         self.session = requests.Session()
         retries = Retry(
-            total=5, backoff_factor=2.0, status_forcelist=[429, 500, 502, 503, 504]
+            total=3, backoff_factor=2.0, status_forcelist=[429, 500, 502, 503, 504]
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retries))
         self.session.headers.update(
@@ -77,8 +77,8 @@ class OpenAIService:
 
         logger.info(f"📦 Request Payload: {payload}")
 
-        for attempt in range(5):
-            logger.info(f"🔄 Attempt {attempt + 1}/5")
+        for attempt in range(3):
+            logger.info(f"🔄 Attempt {attempt + 1}/3")
             try:
                 timeout = 30
 
@@ -133,7 +133,7 @@ class OpenAIService:
                         {
                             "text": "خطا: پاسخ سرور نامعتبر است.",
                             "facialExpression": "default",
-                            "animation": "Idle",
+                            "animation": "StandingIdle",
                         }
                     ]
 
@@ -152,8 +152,12 @@ class OpenAIService:
                     normalized = [
                         {
                             "text": payload_messages.get("text", ""),
-                            "facialExpression": "default",
-                            "animation": "Idle",
+                            "facialExpression": payload_messages.get(
+                                "facialExpression", "default"
+                            ),
+                            "animation": payload_messages.get(
+                                "animation" "StandingIdle"
+                            ),
                         }
                     ]
                 elif isinstance(payload_messages, list):
@@ -170,7 +174,7 @@ class OpenAIService:
                                     "facialExpression": item.get(
                                         "facialExpression", "default"
                                     ),
-                                    "animation": item.get("animation", "Idle"),
+                                    "animation": item.get("animation", "StandingIdle"),
                                 }
                             )
                         else:
@@ -178,7 +182,7 @@ class OpenAIService:
                                 {
                                     "text": str(item),
                                     "facialExpression": "default",
-                                    "animation": "Idle",
+                                    "animation": "StandingIdle",
                                 }
                             )
                 else:
@@ -189,7 +193,7 @@ class OpenAIService:
                                 result.get("messages", {}).get("text", str(result))
                             ),
                             "facialExpression": "default",
-                            "animation": "Idle",
+                            "animation": "StandingIdle",
                         }
                     ]
 
@@ -211,7 +215,21 @@ class OpenAIService:
                 logger.warning(
                     f"⏰ Attempt {attempt + 1} timed out after {timeout} seconds"
                 )
-                if attempt < 4:
+                if attempt == 2:  # This is the final attempt
+                    logger.error("=" * 80)
+                    logger.error("💥 ALL ATTEMPTS FAILED - TIMEOUT")
+                    logger.error("=" * 80)
+                    # Return special error response that will trigger error audio and lipsync
+                    return [
+                        {
+                            "text": "ERROR_SERVICE_UNAVAILABLE",
+                            "facialExpression": "sad",
+                            "animation": "Sad",
+                            "is_error": True,
+                            "language": language,
+                        }
+                    ]
+                else:
                     logger.info(f"🔄 Retrying in next attempt...")
 
             except requests.exceptions.RequestException as e:
@@ -220,17 +238,20 @@ class OpenAIService:
                 logger.warning(f"   - Error Message: {str(e)}")
                 logger.warning(f"   - Error Details: {e}")
 
-                if attempt == 4:
+                if attempt == 2:
                     logger.error("=" * 80)
                     logger.error("💥 ALL ATTEMPTS FAILED")
                     logger.error("=" * 80)
                     logger.error(f"❌ Final Error: {e}")
                     logger.error(f"❌ Error Type: {type(e).__name__}")
+                    # Return special error response that will trigger error audio and lipsync
                     return [
                         {
-                            "text": "خطا: اتصال به سرور ناموفق بود.",
-                            "facialExpression": "default",
-                            "animation": "Idle",
+                            "text": "ERROR_SERVICE_UNAVAILABLE",
+                            "facialExpression": "sad",
+                            "animation": "Sad",
+                            "is_error": True,
+                            "language": language,
                         }
                     ]
                 else:
