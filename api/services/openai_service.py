@@ -156,7 +156,7 @@ class OpenAIService:
                                 "facialExpression", "default"
                             ),
                             "animation": payload_messages.get(
-                                "animation" "StandingIdle"
+                                "animation", "StandingIdle"
                             ),
                         }
                     ]

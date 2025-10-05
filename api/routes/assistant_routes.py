@@ -74,6 +74,58 @@ def clean_text_from_json(text: str) -> str:
     return cleaned_text
 
 
+def cleanup_temp_files(session_id: str = None):
+    """Clean up temporary message files from audios directory"""
+    try:
+        import glob
+
+        if session_id:
+            # Clean up files for specific session
+            session_suffix = (
+                session_id.split("_")[-1] if "_" in session_id else session_id[-8:]
+            )
+            temp_patterns = [
+                f"audios/message_{session_suffix}_*.mp3",
+                f"audios/message_{session_suffix}_*.wav",
+                f"audios/message_{session_suffix}_*.json",
+            ]
+            logger.info(f"🧹 Cleaning up files for session: {session_suffix}")
+        else:
+            # Clean up all temporary message files
+            temp_patterns = [
+                "audios/message_*.mp3",
+                "audios/message_*.wav",
+                "audios/message_*.json",
+            ]
+            logger.info("🧹 Cleaning up all temporary message files")
+
+        cleaned_files = []
+        for pattern in temp_patterns:
+            files = glob.glob(pattern)
+            for file_path in files:
+                try:
+                    # Skip permanent files (like introduction, errorMessage, etc.)
+                    filename = os.path.basename(file_path)
+                    if filename.startswith(
+                        ("introduction", "errorMessage", "intro_", "api_")
+                    ):
+                        continue
+
+                    os.remove(file_path)
+                    cleaned_files.append(file_path)
+                    logger.info(f"🗑️ Cleaned up temp file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not remove {file_path}: {e}")
+
+        if cleaned_files:
+            logger.info(f"✅ Cleaned up {len(cleaned_files)} temporary files")
+        else:
+            logger.info("ℹ️ No temporary files to clean up")
+
+    except Exception as e:
+        logger.error(f"❌ Error during cleanup: {e}")
+
+
 @router.get("/")
 def root():
     logger.info("Root endpoint called")
@@ -233,6 +285,12 @@ def chat(request: ChatRequest):
     logger.info("=" * 100)
     logger.info("🚀 STARTING /chat ENDPOINT")
     logger.info("=" * 100)
+
+    # Clean up any existing temporary files for this session before processing
+    logger.info(
+        f"🧹 Cleaning up previous temporary files for session: {request.session_id}"
+    )
+    cleanup_temp_files(request.session_id)
 
     # Log incoming request details
     logger.info(f"📝 Incoming Request Details:")
@@ -565,8 +623,18 @@ def chat(request: ChatRequest):
                     # Ensure audios directory exists
                     logger.info(f"   📁 Ensuring audios directory exists")
                     os.makedirs("audios", exist_ok=True)
-                    file_name = os.path.join("audios", f"message_{i}.mp3")
+
+                    # Create unique filename with session ID to prevent conflicts
+                    session_suffix = (
+                        request.session_id.split("_")[-1]
+                        if "_" in request.session_id
+                        else request.session_id[-8:]
+                    )
+                    file_name = os.path.join(
+                        "audios", f"message_{session_suffix}_{i}.mp3"
+                    )
                     logger.info(f"   📄 Target Audio File: {file_name}")
+                    logger.info(f"   🔑 Session Suffix: {session_suffix}")
 
                     text_input = (
                         message.get("text", "")
@@ -620,8 +688,12 @@ def chat(request: ChatRequest):
                             f"      ❌ Expected audio file not found after TTS: {file_name}"
                         )
 
-                    wav_file = os.path.join("audios", f"message_{i}.wav")
-                    json_file = os.path.join("audios", f"message_{i}.json")
+                    wav_file = os.path.join(
+                        "audios", f"message_{session_suffix}_{i}.wav"
+                    )
+                    json_file = os.path.join(
+                        "audios", f"message_{session_suffix}_{i}.json"
+                    )
                     logger.info(f"   📄 Lip Sync Files:")
                     logger.info(f"      - WAV File: {wav_file}")
                     logger.info(f"      - JSON File: {json_file}")
@@ -729,15 +801,23 @@ def chat(request: ChatRequest):
                     )
 
                     # پاک کردن فایل‌های موقت
-                    # try:
-                    #     os.remove(file_name)
-                    #     os.remove(wav_file)
-                    #     os.remove(json_file)
-                    #     logger.info(f"Temporary files cleaned up for message {i}")
-                    # except Exception as e:
-                    #     logger.warning(
-                    #         f"Could not clean up temporary files for message {i}: {e}"
-                    #     )
+                    try:
+                        if os.path.exists(file_name):
+                            os.remove(file_name)
+                            logger.info(f"   🗑️ Cleaned up MP3 file: {file_name}")
+                        if os.path.exists(wav_file):
+                            os.remove(wav_file)
+                            logger.info(f"   🗑️ Cleaned up WAV file: {wav_file}")
+                        if os.path.exists(json_file):
+                            os.remove(json_file)
+                            logger.info(f"   🗑️ Cleaned up JSON file: {json_file}")
+                        logger.info(
+                            f"   ✅ Temporary files cleaned up for message {i + 1}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"   ⚠️ Could not clean up temporary files for message {i + 1}: {e}"
+                        )
 
                 except Exception as e:
                     logger.error(
@@ -813,6 +893,12 @@ def chat(request: ChatRequest):
             logger.info(f"      - Facial Expression: {msg.facialExpression}")
             logger.info(f"      - Animation: {msg.animation}")
 
+        # Final cleanup of any remaining temporary files for this session
+        logger.info(
+            f"🧹 Final cleanup of temporary files for session: {request.session_id}"
+        )
+        cleanup_temp_files(request.session_id)
+
         return ChatResponse(messages=result_messages)
 
     except Exception as e:
@@ -832,6 +918,13 @@ def chat(request: ChatRequest):
         logger.error(
             f"   - Request Language: '{request.language if 'request' in locals() else 'N/A'}'"
         )
+
+        # Clean up temporary files even if there was an error
+        logger.info(
+            f"🧹 Cleaning up temporary files after error for session: {request.session_id}"
+        )
+        cleanup_temp_files(request.session_id)
+
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
